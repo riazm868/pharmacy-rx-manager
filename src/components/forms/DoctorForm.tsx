@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Doctor } from '@/types/database';
+import DoctorNameInput from '@/components/ui/DoctorNameInput';
 
 type DoctorFormProps = {
   onSubmit: (doctor: Omit<Doctor, 'id' | 'created_at' | 'updated_at'>) => void;
@@ -17,6 +18,10 @@ export default function DoctorForm({
   const [formData, setFormData] = useState<Partial<Doctor>>({
     name: '',
     phone: '',
+    phone2: '',
+    email: '',
+    registration_number: '',
+    clinic_name: '',
     address: '',
     ...initialData,
   });
@@ -37,14 +42,11 @@ export default function DoctorForm({
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Doctor Name *
         </label>
-        <input
-          type="text"
-          name="name"
-          id="name"
-          required
+        <DoctorNameInput
           value={formData.name || ''}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          onChange={(e) => handleChange({ target: { name: 'name', value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
+          phone={formData.phone}
+          required
         />
       </div>
 
@@ -64,8 +66,64 @@ export default function DoctorForm({
       </div>
 
       <div>
+        <label htmlFor="phone2" className="block text-sm font-medium text-gray-700">
+          Secondary Phone Number
+        </label>
+        <input
+          type="tel"
+          name="phone2"
+          id="phone2"
+          value={formData.phone2 || ''}
+          onChange={handleChange}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email Address
+        </label>
+        <input
+          type="email"
+          name="email"
+          id="email"
+          value={formData.email || ''}
+          onChange={handleChange}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="registration_number" className="block text-sm font-medium text-gray-700">
+          Doctor Registration Number
+        </label>
+        <input
+          type="text"
+          name="registration_number"
+          id="registration_number"
+          value={formData.registration_number || ''}
+          onChange={handleChange}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="clinic_name" className="block text-sm font-medium text-gray-700">
+          Clinic Name
+        </label>
+        <input
+          type="text"
+          name="clinic_name"
+          id="clinic_name"
+          value={formData.clinic_name || ''}
+          onChange={handleChange}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+        />
+      </div>
+
+      <div>
         <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-          Address
+          Clinic Address
         </label>
         <textarea
           name="address"

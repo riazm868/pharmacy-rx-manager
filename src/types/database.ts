@@ -21,7 +21,11 @@ export type Doctor = {
   id: string;
   name: string;
   phone: string;
-  address: string;
+  phone2?: string;
+  email?: string;
+  registration_number?: string;
+  clinic_name?: string;
+  address: string; // This will be used for clinic address
   created_at: string;
   updated_at: string;
 };
