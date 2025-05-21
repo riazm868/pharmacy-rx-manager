@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Patient, Doctor, Medication, Prescription, PrescriptionMedication } from '@/types/database';
 import { calculateQuantityToDispense } from '@/utils/calculateQuantity';
-import AutocompleteWithAdd from './AutocompleteWithAdd';
-import Modal from './Modal';
+import AutocompleteWithAdd from '../ui/AutocompleteWithAdd';
+import Modal from '../modals/Modal';
 import PatientForm from './PatientForm';
 import DoctorForm from './DoctorForm';
 import MedicationForm from './MedicationForm';
