@@ -7,6 +7,23 @@ import PatientForm from './PatientForm';
 import DoctorForm from './DoctorForm';
 import MedicationForm from './MedicationForm';
 
+// Frequency options for the dropdown
+const frequencyOptions = [
+  { value: 'once daily', label: 'Once Daily (QD)' },
+  { value: 'twice daily', label: 'Twice Daily (BID)' },
+  { value: 'three times daily', label: 'Three Times Daily (TID)' },
+  { value: 'four times daily', label: 'Four Times Daily (QID)' },
+  { value: 'every 4 hours', label: 'Every 4 Hours (Q4H)' },
+  { value: 'every 6 hours', label: 'Every 6 Hours (Q6H)' },
+  { value: 'every 8 hours', label: 'Every 8 Hours (Q8H)' },
+  { value: 'every 12 hours', label: 'Every 12 Hours (Q12H)' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'twice weekly', label: 'Twice Weekly' },
+  { value: 'every other day', label: 'Every Other Day (QOD)' },
+  { value: 'as needed', label: 'As Needed (PRN)' },
+  { value: 'at bedtime', label: 'At Bedtime (QHS)' },
+];
+
 type PrescriptionFormProps = {
   onSubmit: (
     prescription: Omit<Prescription, 'id' | 'created_at' | 'updated_at'>,
@@ -106,11 +123,20 @@ export default function PrescriptionForm({
 
     const { dose, frequency, days } = item;
     
+    // Skip calculation if any required field is missing
+    if (!dose || !frequency || !days) {
+      console.log('Skipping calculation - missing required fields', { dose, frequency, days });
+      return;
+    }
+    
     try {
+      console.log('Calculating quantity with:', { dose, frequency, days });
       const doseNum = parseFloat(dose);
       const result = calculateQuantityToDispense(doseNum, frequency, days);
+      console.log('Calculation result:', result);
       
       if (!isNaN(result.result)) {
+        console.log('Updating quantity to:', result.result);
         updateMedicationItem(id, { quantity: result.result });
       }
     } catch (error) {
@@ -382,15 +408,25 @@ export default function PrescriptionForm({
                     <label htmlFor={`frequency-${item.id}`} className="block text-sm font-medium text-gray-700">
                       Frequency
                     </label>
-                    <input
-                      type="text"
+                    <select
                       id={`frequency-${item.id}`}
-                      value={item.frequency}
-                      onChange={(e) => updateMedicationItem(item.id, { frequency: e.target.value })}
-                      onBlur={() => calculateQuantity(item.id)}
+                      value={item.frequency || ''}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        console.log('Selected frequency:', newValue);
+                        updateMedicationItem(item.id, { frequency: newValue });
+                        // Add a small delay before calculating quantity to ensure state is updated
+                        setTimeout(() => calculateQuantity(item.id), 10);
+                      }}
                       className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      placeholder="e.g., twice daily, every 8 hours"
-                    />
+                    >
+                      <option value="">Select Frequency</option>
+                      {frequencyOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="col-span-6 sm:col-span-2">
