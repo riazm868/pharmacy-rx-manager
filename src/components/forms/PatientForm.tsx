@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Patient } from '@/types/database';
+import PatientNameInput from '@/components/ui/PatientNameInput';
 
 type PatientFormProps = {
   onSubmit: (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => void;
@@ -36,6 +37,17 @@ export default function PatientForm({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Function to format date for display
+  const formatDate = (date: string | null): string => {
+    if (!date) return '';
+    try {
+      const d = new Date(date);
+      return d.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+    } catch (e) {
+      return '';
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData as Omit<Patient, 'id' | 'created_at' | 'updated_at'>);
@@ -48,14 +60,12 @@ export default function PatientForm({
           <label htmlFor="name" className="block text-sm font-medium text-gray-700">
             Full Name *
           </label>
-          <input
-            type="text"
-            name="name"
-            id="name"
-            required
+          <PatientNameInput
             value={formData.name || ''}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            onChange={(e) => handleChange({ target: { name: 'name', value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
+            dob={formData.dob}
+            phone={formData.phone}
+            required
           />
         </div>
 
@@ -95,13 +105,12 @@ export default function PatientForm({
 
         <div>
           <label htmlFor="id_number" className="block text-sm font-medium text-gray-700">
-            ID Number *
+            ID Number
           </label>
           <input
             type="text"
             name="id_number"
             id="id_number"
-            required
             value={formData.id_number || ''}
             onChange={handleChange}
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -185,13 +194,12 @@ export default function PatientForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-              Street Address *
+              Street Address
             </label>
             <input
               type="text"
               name="address"
               id="address"
-              required
               value={formData.address || ''}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -200,13 +208,12 @@ export default function PatientForm({
 
           <div>
             <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-              City *
+              City
             </label>
             <input
               type="text"
               name="city"
               id="city"
-              required
               value={formData.city || ''}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -215,13 +222,12 @@ export default function PatientForm({
 
           <div>
             <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-              State *
+              State
             </label>
             <input
               type="text"
               name="state"
               id="state"
-              required
               value={formData.state || ''}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
@@ -230,13 +236,12 @@ export default function PatientForm({
 
           <div>
             <label htmlFor="zip" className="block text-sm font-medium text-gray-700">
-              ZIP Code *
+              ZIP Code
             </label>
             <input
               type="text"
               name="zip"
               id="zip"
-              required
               value={formData.zip || ''}
               onChange={handleChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
