@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Prescription, Patient, Doctor, Medication, PrescriptionMedication } from '@/types/database';
 import { format } from 'date-fns';
+import PrintButton from '@/components/print/PrintButton';
 
 type PrescriptionWithDetails = Prescription & {
   patient: Pick<Patient, 'id' | 'name'>;
@@ -112,21 +113,25 @@ export default function PrescriptionsPage() {
           <ul className="divide-y divide-gray-200">
             {filteredPrescriptions.map((prescription) => (
               <li key={prescription.id}>
-                <Link href={`/prescriptions/${prescription.id}`} className="block hover:bg-gray-50">
-                  <div className="px-4 py-4 sm:px-6">
-                    {/* Header with RX number and date */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <p className="text-sm font-medium text-indigo-600 truncate">
-                          RX: {prescription.id.substring(0, 8).toUpperCase()}
-                        </p>
+                <div className="relative">
+                  <Link href={`/prescriptions/${prescription.id}`} className="block hover:bg-gray-50">
+                    <div className="px-4 py-4 sm:px-6">
+                      {/* Header with RX number and date */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <p className="text-sm font-medium text-indigo-600 truncate">
+                            RX: {prescription.id.substring(0, 8).toUpperCase()}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <PrintButton prescriptionId={prescription.id} />
+                          <div className="flex-shrink-0">
+                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                              {format(new Date(prescription.date), 'dd/MM/yyyy')}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="ml-2 flex-shrink-0 flex">
-                        <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          {format(new Date(prescription.date), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
-                    </div>
                     
                     {/* Patient and Doctor in a row */}
                     <div className="mt-2 grid grid-cols-2 gap-4">
@@ -161,8 +166,9 @@ export default function PrescriptionsPage() {
                         </div>
                       </div>
                     )}
-                  </div>
-                </Link>
+                    </div>
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

@@ -35,6 +35,7 @@ export type Medication = {
   name: string;
   strength: string;
   count: number;
+  manufacturer?: string;
   created_at: string;
   updated_at: string;
 };
