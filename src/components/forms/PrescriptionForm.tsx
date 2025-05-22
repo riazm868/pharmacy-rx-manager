@@ -3,6 +3,7 @@ import { Patient, Doctor, Medication, Prescription, PrescriptionMedication } fro
 import { calculateQuantityToDispense } from '@/utils/calculateQuantity';
 import AutocompleteWithAdd from '../ui/AutocompleteWithAdd';
 import Modal from '../modals/Modal';
+import PrintLabelModal from '../modals/PrintLabelModal';
 import PatientForm from './PatientForm';
 import DoctorForm from './DoctorForm';
 import MedicationForm from './MedicationForm';
@@ -24,10 +25,11 @@ const frequencyOptions = [
   { value: 'at bedtime', label: 'At Bedtime (QHS)' },
 ];
 
-type PrescriptionFormProps = {
+interface PrescriptionFormProps {
   onSubmit: (
     prescription: Omit<Prescription, 'id' | 'created_at' | 'updated_at'>,
-    medications: Array<Omit<PrescriptionMedication, 'id' | 'prescription_id' | 'created_at' | 'updated_at'>>
+    medications: Array<Omit<PrescriptionMedication, 'id' | 'prescription_id' | 'created_at' | 'updated_at'>>,
+    callback?: (prescription: Prescription, medications: PrescriptionMedication[]) => void
   ) => void;
   onCancel: () => void;
   patients: Patient[];
@@ -84,6 +86,14 @@ export default function PrescriptionForm({
   const [isAddingPatient, setIsAddingPatient] = useState(false);
   const [isAddingDoctor, setIsAddingDoctor] = useState(false);
   const [isAddingMedication, setIsAddingMedication] = useState(false);
+  
+  // State for print label modal
+  const [showPrintLabelModal, setShowPrintLabelModal] = useState(false);
+  const [createdPrescription, setCreatedPrescription] = useState<Prescription | null>(null);
+  const [selectedMedicationForPrint, setSelectedMedicationForPrint] = useState<{
+    medication: Medication;
+    prescriptionMedication: PrescriptionMedication;
+  } | null>(null);
 
   // Add a new medication item to the prescription
   const addMedicationItem = () => {
@@ -145,39 +155,77 @@ export default function PrescriptionForm({
   };
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, shouldPrint: boolean = false) => {
     e.preventDefault();
     
-    if (!selectedPatient || !selectedDoctor) {
-      alert('Please select a patient and doctor');
+    // Validate required fields
+    if (!selectedPatient) {
+      alert('Please select a patient');
       return;
     }
     
-    if (medicationItems.length === 0 || medicationItems.some(item => !item.medication)) {
+    if (!selectedDoctor) {
+      alert('Please select a doctor');
+      return;
+    }
+    
+    if (medicationItems.length === 0 || !medicationItems.some(item => item.medication)) {
       alert('Please add at least one medication');
       return;
     }
     
+    // Validate each medication item
+    const invalidMedications = medicationItems.filter(item => {
+      return !item.medication || !item.dose || !item.frequency || !item.days || item.quantity <= 0;
+    });
+    
+    if (invalidMedications.length > 0) {
+      alert('Please complete all required fields for each medication');
+      return;
+    }
+    
+    // Create prescription object
     const prescription: Omit<Prescription, 'id' | 'created_at' | 'updated_at'> = {
       patient_id: selectedPatient.id,
       doctor_id: selectedDoctor.id,
       date: prescriptionDate,
-      notes,
+      notes: notes || undefined,
     };
     
-    const medications = medicationItems.map(item => ({
-      medication_id: item.medication!.id,
-      dose: item.dose,
-      route: item.route,
-      frequency: item.frequency,
-      days: item.days,
-      quantity: item.quantity,
-      unit: item.unit,
-      refills: item.refills,
-      notes: item.notes,
-    }));
+    // Create medication items
+    const medications = medicationItems
+      .filter(item => item.medication) // Filter out empty items
+      .map(item => ({
+        medication_id: item.medication!.id,
+        dose: item.dose,
+        route: item.route,
+        frequency: item.frequency,
+        days: item.days,
+        quantity: item.quantity,
+        unit: item.unit,
+        refills: item.refills,
+        notes: item.notes || undefined,
+      }));
     
-    onSubmit(prescription, medications);
+    if (shouldPrint && medicationItems.length > 0 && medicationItems[0].medication) {
+      // We'll use a callback approach to handle printing after submission
+      const handlePrescriptionCreated = (createdPrescription: Prescription, createdMedications: PrescriptionMedication[]) => {
+        if (createdMedications.length > 0) {
+          setCreatedPrescription(createdPrescription);
+          setSelectedMedicationForPrint({
+            medication: medicationItems[0].medication!,
+            prescriptionMedication: createdMedications[0]
+          });
+          setShowPrintLabelModal(true);
+        }
+      };
+      
+      // Submit the prescription with the callback
+      onSubmit(prescription, medications, handlePrescriptionCreated);
+    } else {
+      // Regular submission without printing
+      onSubmit(prescription, medications);
+    }
   };
 
   // Handle adding a new patient
@@ -552,6 +600,14 @@ export default function PrescriptionForm({
           Cancel
         </button>
         <button
+          type="button"
+          onClick={(e) => handleSubmit(e, true)}
+          disabled={isSubmitting}
+          className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+        >
+          {isSubmitting ? 'Saving...' : 'Create & Print Label'}
+        </button>
+        <button
           type="submit"
           disabled={isSubmitting}
           className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -601,6 +657,19 @@ export default function PrescriptionForm({
           isSubmitting={isAddingMedication}
         />
       </Modal>
+      
+      {/* Print Label Modal */}
+      {createdPrescription && selectedPatient && selectedDoctor && selectedMedicationForPrint && (
+        <PrintLabelModal
+          isOpen={showPrintLabelModal}
+          onClose={() => setShowPrintLabelModal(false)}
+          prescription={createdPrescription}
+          patient={selectedPatient}
+          doctor={selectedDoctor}
+          medication={selectedMedicationForPrint.medication}
+          prescriptionMedication={selectedMedicationForPrint.prescriptionMedication}
+        />
+      )}
     </form>
   );
 }
