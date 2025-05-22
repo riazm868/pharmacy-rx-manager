@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Medication } from '@/types/database';
+import MedicationNameInput from '@/components/ui/MedicationNameInput';
 
 type MedicationFormProps = {
   onSubmit: (medication: Omit<Medication, 'id' | 'created_at' | 'updated_at'>) => void;
@@ -15,10 +16,9 @@ export default function MedicationForm({
   isSubmitting = false,
 }: MedicationFormProps) {
   const [formData, setFormData] = useState<Partial<Medication>>({
-    name: '',
-    strength: '',
-    count: 0,
-    ...initialData,
+    name: initialData?.name || '',
+    strength: initialData?.strength || 'N/A', // Default value for strength
+    count: initialData?.count || 0,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +29,7 @@ export default function MedicationForm({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit(formData as Omit<Medication, 'id' | 'created_at' | 'updated_at'>);
   };
@@ -40,47 +40,14 @@ export default function MedicationForm({
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Medication Name *
         </label>
-        <input
-          type="text"
-          name="name"
-          id="name"
-          required
+        <MedicationNameInput
           value={formData.name || ''}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="strength" className="block text-sm font-medium text-gray-700">
-          Strength *
-        </label>
-        <input
-          type="text"
-          name="strength"
-          id="strength"
+          onChange={(e) => handleChange({ target: { name: 'name', value: e.target.value } } as React.ChangeEvent<HTMLInputElement>)}
           required
-          placeholder="e.g., 10mg, 25mg/5ml"
-          value={formData.strength || ''}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
         />
       </div>
 
-      <div>
-        <label htmlFor="count" className="block text-sm font-medium text-gray-700">
-          Count (Units per Container)
-        </label>
-        <input
-          type="number"
-          name="count"
-          id="count"
-          min="0"
-          value={formData.count || 0}
-          onChange={handleChange}
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-      </div>
+      {/* Strength field is hidden but will use default value */}
 
       <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
         <button
