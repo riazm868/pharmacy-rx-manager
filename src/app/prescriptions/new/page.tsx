@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Patient, Doctor, Medication, Prescription, PrescriptionMedication } from '@/types/database';
 import PrescriptionForm from '@/components/forms/PrescriptionForm';
+import MedicationAnalysis from '@/components/ai/MedicationAnalysis';
+import { analyzePrescription, MedicationAnalysis as MedicationAnalysisType } from '@/services/aiService';
+import { Brain } from 'lucide-react';
 
 export default function NewPrescriptionPage() {
   console.log('Rendering NewPrescriptionPage');
@@ -15,6 +18,10 @@ export default function NewPrescriptionPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<MedicationAnalysisType | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [currentMedications, setCurrentMedications] = useState<Array<{ name: string; dosage?: string }>>([]);
 
   // Search for patients
   const handleSearchPatient = async (query: string) => {
@@ -130,6 +137,27 @@ export default function NewPrescriptionPage() {
     }
   };
 
+  // Handle AI analysis of medications
+  const handleAnalyzeMedications = async () => {
+    if (currentMedications.length === 0) {
+      setAnalysisError('Please add medications to analyze');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    
+    try {
+      const analysis = await analyzePrescription(currentMedications);
+      setAiAnalysis(analysis);
+    } catch (err: any) {
+      console.error('Error analyzing medications:', err);
+      setAnalysisError('Failed to analyze medications. AI service may be unavailable.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (
     prescriptionData: Omit<Prescription, 'id' | 'created_at' | 'updated_at'>,
@@ -213,22 +241,62 @@ export default function NewPrescriptionPage() {
         </div>
       )}
       
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <PrescriptionForm
-            onSubmit={handleSubmit}
-            onCancel={() => router.push('/prescriptions')}
-            patients={patients}
-            doctors={doctors}
-            medications={medications}
-            onSearchPatient={handleSearchPatient}
-            onSearchDoctor={handleSearchDoctor}
-            onSearchMedication={handleSearchMedication}
-            onAddPatient={handleAddPatient}
-            onAddDoctor={handleAddDoctor}
-            onAddMedication={handleAddMedication}
-            isSubmitting={isSubmitting}
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Form - Takes 2 columns on large screens */}
+        <div className="lg:col-span-2">
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <PrescriptionForm
+                onSubmit={handleSubmit}
+                onCancel={() => router.push('/prescriptions')}
+                patients={patients}
+                doctors={doctors}
+                medications={medications}
+                onSearchPatient={handleSearchPatient}
+                onSearchDoctor={handleSearchDoctor}
+                onSearchMedication={handleSearchMedication}
+                onAddPatient={handleAddPatient}
+                onAddDoctor={handleAddDoctor}
+                onAddMedication={handleAddMedication}
+                isSubmitting={isSubmitting}
+                onMedicationsChange={(meds: any[]) => {
+                  setCurrentMedications(meds.filter((m: any) => m.medication).map((m: any) => ({
+                    name: m.medication!.name,
+                    dosage: m.dose
+                  })));
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* AI Analysis Panel - Takes 1 column on large screens */}
+        <div className="lg:col-span-1">
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center">
+                <Brain className="h-5 w-5 mr-2 text-indigo-600" />
+                AI Analysis
+              </h3>
+              <button
+                onClick={handleAnalyzeMedications}
+                disabled={isAnalyzing || currentMedications.length === 0}
+                className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+              </button>
+            </div>
+            
+            {currentMedications.length === 0 ? (
+              <p className="text-gray-500 text-sm">Add medications to enable AI analysis</p>
+            ) : (
+              <MedicationAnalysis
+                analysis={aiAnalysis}
+                isLoading={isAnalyzing}
+                error={analysisError}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -42,6 +42,7 @@ interface PrescriptionFormProps {
   onAddDoctor: (doctor: Omit<Doctor, 'id' | 'created_at' | 'updated_at'>) => Promise<Doctor>;
   onAddMedication: (medication: Omit<Medication, 'id' | 'created_at' | 'updated_at'>) => Promise<Medication>;
   isSubmitting?: boolean;
+  onMedicationsChange?: (medications: MedicationItem[]) => void;
 };
 
 type MedicationItem = {
@@ -70,6 +71,7 @@ export default function PrescriptionForm({
   onAddDoctor,
   onAddMedication,
   isSubmitting = false,
+  onMedicationsChange,
 }: PrescriptionFormProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -97,7 +99,7 @@ export default function PrescriptionForm({
 
   // Add a new medication item to the prescription
   const addMedicationItem = () => {
-    setMedicationItems([
+    const newItems = [
       ...medicationItems,
       {
         medication: null,
@@ -111,19 +113,29 @@ export default function PrescriptionForm({
         notes: '',
         id: `temp-${Date.now()}-${medicationItems.length}`,
       },
-    ]);
+    ];
+    setMedicationItems(newItems);
+    if (onMedicationsChange) {
+      onMedicationsChange(newItems);
+    }
   };
 
   // Remove a medication item from the prescription
   const removeMedicationItem = (id: string) => {
-    setMedicationItems(medicationItems.filter((item) => item.id !== id));
+    const newItems = medicationItems.filter((item) => item.id !== id);
+    setMedicationItems(newItems);
+    if (onMedicationsChange) {
+      onMedicationsChange(newItems);
+    }
   };
 
   // Update a medication item
   const updateMedicationItem = (id: string, updates: Partial<MedicationItem>) => {
-    setMedicationItems(
-      medicationItems.map((item) => (item.id === id ? { ...item, ...updates } : item))
-    );
+    const newItems = medicationItems.map((item) => (item.id === id ? { ...item, ...updates } : item));
+    setMedicationItems(newItems);
+    if (onMedicationsChange) {
+      onMedicationsChange(newItems);
+    }
   };
 
   // Calculate quantity based on dose, frequency, and days
