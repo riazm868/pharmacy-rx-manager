@@ -120,7 +120,10 @@ export default function PrescriptionsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                           <p className="text-sm font-medium text-indigo-600 truncate">
-                            RX: {prescription.id.substring(0, 8).toUpperCase()}
+                            {prescription.prescription_number 
+                              ? `RX: ${prescription.prescription_number}` 
+                              : `Ref: ${prescription.id.substring(0, 8).toUpperCase()}`
+                            }
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">

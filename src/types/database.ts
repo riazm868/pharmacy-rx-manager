@@ -42,6 +42,7 @@ export type Medication = {
 
 export type Prescription = {
   id: string;
+  prescription_number?: string; // Manual prescription number entry
   patient_id: string;
   doctor_id: string;
   date: string;

@@ -1,12 +1,28 @@
+/*
+ * REFACTORING SUGGESTIONS:
+ * 1. Split this large component into smaller components:
+ *    - MedicationItemForm: Extract the medication item form into a separate component
+ *    - PrescriptionHeader: Extract the header section with patient/doctor selection
+ *    - FormActions: Extract the action buttons at the bottom
+ * 2. Use React Context for sharing state between components
+ * 3. Use a form library like Formik or React Hook Form for better form management
+ * 4. Create custom hooks for API calls and form validation logic
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Patient, Doctor, Medication, Prescription, PrescriptionMedication } from '@/types/database';
+import { formatDate } from '@/lib/utils';
 import { calculateQuantityToDispense } from '@/utils/calculateQuantity';
+import { supabase } from '@/lib/supabase';
 import AutocompleteWithAdd from '../ui/AutocompleteWithAdd';
 import Modal from '../modals/Modal';
 import PrintLabelModal from '../modals/PrintLabelModal';
 import PatientForm from './PatientForm';
 import DoctorForm from './DoctorForm';
 import MedicationForm from './MedicationForm';
+import PatientDetailsModal from '../modals/PatientDetailsModal';
+import DoctorDetailsModal from '../modals/DoctorDetailsModal';
+import MedicationDetailsModal from '../modals/MedicationDetailsModal';
 
 // Frequency options for the dropdown
 const frequencyOptions = [
@@ -76,13 +92,28 @@ export default function PrescriptionForm({
   const [prescriptionDate, setPrescriptionDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  const [prescriptionNumber, setPrescriptionNumber] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [medicationItems, setMedicationItems] = useState<MedicationItem[]>([]);
+  
+  // Error states
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    patient?: string;
+    doctor?: string;
+    medications?: string;
+    prescriptionNumber?: string;
+  }>({});
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   
   // Modal states
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [showMedicationModal, setShowMedicationModal] = useState(false);
+  const [showPatientDetailsModal, setShowPatientDetailsModal] = useState(false);
+  const [showDoctorDetailsModal, setShowDoctorDetailsModal] = useState(false);
+  const [showMedicationDetailsModal, setShowMedicationDetailsModal] = useState(false);
+  const [selectedMedicationForDetails, setSelectedMedicationForDetails] = useState<Medication | null>(null);
   const [isAddingPatient, setIsAddingPatient] = useState(false);
   const [isAddingDoctor, setIsAddingDoctor] = useState(false);
   const [isAddingMedication, setIsAddingMedication] = useState(false);
@@ -117,6 +148,25 @@ export default function PrescriptionForm({
   // Remove a medication item from the prescription
   const removeMedicationItem = (id: string) => {
     setMedicationItems(medicationItems.filter((item) => item.id !== id));
+  };
+
+  // Check for duplicate prescription number
+  const checkDuplicatePrescriptionNumber = async (): Promise<boolean> => {
+    if (!prescriptionNumber) return false;
+    
+    try {
+      const { data, error } = await supabase
+        .from('prescriptions')
+        .select('id')
+        .eq('prescription_number', prescriptionNumber)
+        .limit(1);
+      
+      if (error) throw error;
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Error checking prescription number:', error);
+      return false;
+    }
   };
 
   // Update a medication item
@@ -155,39 +205,62 @@ export default function PrescriptionForm({
   };
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent, shouldPrint: boolean = false) => {
+  const handleSubmit = async (e: React.FormEvent, shouldPrint: boolean = false) => {
     e.preventDefault();
+    
+    // Clear previous errors
+    setFormError(null);
+    setFieldErrors({});
+    setIsSubmittingForm(true);
+    
+    // Collect validation errors
+    const errors: typeof fieldErrors = {};
     
     // Validate required fields
     if (!selectedPatient) {
-      alert('Please select a patient');
-      return;
+      errors.patient = 'Please select a patient';
     }
-    
+
     if (!selectedDoctor) {
-      alert('Please select a doctor');
-      return;
+      errors.doctor = 'Please select a doctor';
     }
-    
+
     if (medicationItems.length === 0 || !medicationItems.some(item => item.medication)) {
-      alert('Please add at least one medication');
-      return;
+      errors.medications = 'Please add at least one medication';
+    } else {
+      // Validate each medication item
+      const invalidMedications = medicationItems.filter(item => {
+        return !item.medication || !item.dose || !item.frequency || !item.days || item.quantity <= 0;
+      });
+
+      if (invalidMedications.length > 0) {
+        errors.medications = 'Please complete all required fields for each medication';
+      }
     }
     
-    // Validate each medication item
-    const invalidMedications = medicationItems.filter(item => {
-      return !item.medication || !item.dose || !item.frequency || !item.days || item.quantity <= 0;
-    });
+    // Check for duplicate prescription number
+    if (prescriptionNumber) {
+      const isDuplicate = await checkDuplicatePrescriptionNumber();
+      if (isDuplicate) {
+        errors.prescriptionNumber = 'This prescription number already exists. Please use a different number.';
+      }
+    }
     
-    if (invalidMedications.length > 0) {
-      alert('Please complete all required fields for each medication');
+    // If there are any errors, update state and stop submission
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFormError('Please correct the errors below before submitting.');
+      setIsSubmittingForm(false);
+      // Scroll to top to show the error message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     
     // Create prescription object
     const prescription: Omit<Prescription, 'id' | 'created_at' | 'updated_at'> = {
-      patient_id: selectedPatient.id,
-      doctor_id: selectedDoctor.id,
+      patient_id: selectedPatient!.id,
+      doctor_id: selectedDoctor!.id,
+      prescription_number: prescriptionNumber || undefined,
       date: prescriptionDate,
       notes: notes || undefined,
     };
@@ -305,7 +378,22 @@ export default function PrescriptionForm({
   }, []);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={(e) => handleSubmit(e)} className="space-y-6">
+      {/* Form Error Message */}
+      {formError && (
+        <div className="rounded-md bg-red-50 p-4 mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">{formError}</h3>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
         <div className="md:grid md:grid-cols-3 md:gap-6">
           <div className="md:col-span-1">
@@ -321,11 +409,32 @@ export default function PrescriptionForm({
                   items={patients}
                   itemToString={(item) => (item ? item.name : '')}
                   onInputValueChange={onSearchPatient}
-                  onSelectedItemChange={setSelectedPatient}
+                  onSelectedItemChange={(patient) => {
+                    setSelectedPatient(patient);
+                    // Clear patient error when a patient is selected
+                    if (patient && fieldErrors.patient) {
+                      setFieldErrors({...fieldErrors, patient: undefined});
+                    }
+                  }}
                   onAddNew={() => setShowPatientModal(true)}
                   label="Patient"
                   placeholder="Search for a patient..."
+                  selectedItem={selectedPatient}
                 />
+                {fieldErrors.patient && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.patient}</p>
+                )}
+                {selectedPatient && (
+                  <div
+                    className="p-3 bg-indigo-100 text-indigo-800 rounded-md cursor-pointer hover:bg-indigo-200 transition-colors mt-2"
+                    onClick={() => setShowPatientDetailsModal(true)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{selectedPatient.name}</span>
+                      <span className="text-xs text-indigo-600">(Click to view details)</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="col-span-6 sm:col-span-3">
@@ -333,11 +442,56 @@ export default function PrescriptionForm({
                   items={doctors}
                   itemToString={(item) => (item ? item.name : '')}
                   onInputValueChange={onSearchDoctor}
-                  onSelectedItemChange={setSelectedDoctor}
+                  onSelectedItemChange={(doctor) => {
+                    setSelectedDoctor(doctor);
+                    // Clear doctor error when a doctor is selected
+                    if (doctor && fieldErrors.doctor) {
+                      setFieldErrors({...fieldErrors, doctor: undefined});
+                    }
+                  }}
                   onAddNew={() => setShowDoctorModal(true)}
                   label="Doctor"
                   placeholder="Search for a doctor..."
+                  selectedItem={selectedDoctor}
                 />
+                {fieldErrors.doctor && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.doctor}</p>
+                )}
+                {selectedDoctor && (
+                  <div
+                    className="p-3 bg-indigo-100 text-indigo-800 rounded-md cursor-pointer hover:bg-indigo-200 transition-colors mt-2"
+                    onClick={() => setShowDoctorDetailsModal(true)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{selectedDoctor.name}</span>
+                      <span className="text-xs text-indigo-600">(Click to view details)</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="col-span-6 sm:col-span-3">
+                <label htmlFor="prescription_number" className="block text-sm font-medium text-gray-700">
+                  Prescription Number
+                </label>
+                <input
+                  type="text"
+                  name="prescription_number"
+                  id="prescription_number"
+                  value={prescriptionNumber}
+                  onChange={(e) => {
+                    setPrescriptionNumber(e.target.value);
+                    // Clear prescription number error when changed
+                    if (fieldErrors.prescriptionNumber) {
+                      setFieldErrors({...fieldErrors, prescriptionNumber: undefined});
+                    }
+                  }}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="Enter prescription number (optional)"
+                />
+                {fieldErrors.prescriptionNumber && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.prescriptionNumber}</p>
+                )}
               </div>
 
               <div className="col-span-6 sm:col-span-3">
@@ -379,6 +533,9 @@ export default function PrescriptionForm({
             <p className="mt-1 text-sm text-gray-500">
               Add one or more medications to this prescription.
             </p>
+            {fieldErrors.medications && (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.medications}</p>
+            )}
             <button
               type="button"
               onClick={addMedicationItem}
@@ -658,8 +815,50 @@ export default function PrescriptionForm({
         />
       </Modal>
       
+      {/* Patient Details Modal */}
+      <Modal
+        isOpen={showPatientDetailsModal}
+        onClose={() => setShowPatientDetailsModal(false)}
+        title="Patient Details"
+        maxWidth="lg"
+      >
+        <PatientDetailsModal
+          patient={selectedPatient}
+          onUpdatePatient={onAddPatient}
+          onClose={() => setShowPatientDetailsModal(false)}
+        />
+      </Modal>
+
+      {/* Doctor Details Modal */}
+      <Modal
+        isOpen={showDoctorDetailsModal}
+        onClose={() => setShowDoctorDetailsModal(false)}
+        title="Doctor Details"
+        maxWidth="lg"
+      >
+        <DoctorDetailsModal
+          doctor={selectedDoctor}
+          onUpdateDoctor={onAddDoctor}
+          onClose={() => setShowDoctorDetailsModal(false)}
+        />
+      </Modal>
+
+      {/* Medication Details Modal */}
+      <Modal
+        isOpen={showMedicationDetailsModal}
+        onClose={() => setShowMedicationDetailsModal(false)}
+        title="Medication Details"
+        maxWidth="lg"
+      >
+        <MedicationDetailsModal
+          medication={selectedMedicationForDetails}
+          onUpdateMedication={onAddMedication}
+          onClose={() => setShowMedicationDetailsModal(false)}
+        />
+      </Modal>
+
       {/* Print Label Modal */}
-      {createdPrescription && selectedPatient && selectedDoctor && selectedMedicationForPrint && (
+      {createdPrescription && selectedPatient && selectedDoctor && selectedMedicationForPrint && selectedMedicationForPrint.medication && (
         <PrintLabelModal
           isOpen={showPrintLabelModal}
           onClose={() => setShowPrintLabelModal(false)}

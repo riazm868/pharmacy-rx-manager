@@ -12,6 +12,7 @@ type AutocompleteWithAddProps<T> = {
   isLoading?: boolean;
   disabled?: boolean;
   className?: string;
+  selectedItem?: T | null;
 };
 
 export default function AutocompleteWithAdd<T>({
@@ -25,6 +26,7 @@ export default function AutocompleteWithAdd<T>({
   isLoading = false,
   disabled = false,
   className = '',
+  selectedItem = null,
 }: AutocompleteWithAddProps<T>) {
   const [inputItems, setInputItems] = useState(items);
   const [showAddNew, setShowAddNew] = useState(false);
@@ -45,6 +47,8 @@ export default function AutocompleteWithAdd<T>({
   } = useCombobox({
     items: inputItems,
     itemToString,
+    initialSelectedItem: selectedItem,
+    selectedItem: selectedItem,
     onInputValueChange: ({ inputValue }) => {
       onInputValueChange(inputValue || '');
       setShowAddNew(true);
