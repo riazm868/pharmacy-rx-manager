@@ -160,7 +160,12 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Prescription: {prescription.rx_number}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {prescription.prescription_number 
+            ? `Prescription: ${prescription.prescription_number}` 
+            : `Prescription Reference: ${prescription.id.substring(0, 8).toUpperCase()}`
+          }
+        </h1>
         <div className="flex space-x-4">
           <Link
             href={`/prescriptions/edit/${prescription.id}`}
@@ -191,13 +196,13 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
         <div className="border-t border-gray-200">
           <dl>
             <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">RX Number</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{prescription.rx_number}</dd>
+              <dt className="text-sm font-medium text-gray-500">{prescription.prescription_number ? 'RX Number' : 'Reference ID'}</dt>
+              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{prescription.prescription_number || prescription.id.substring(0, 8).toUpperCase()}</dd>
             </div>
             <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt className="text-sm font-medium text-gray-500">Date</dt>
               <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {format(new Date(prescription.prescription_date), 'dd/MM/yyyy')}
+                {format(new Date(prescription.date), 'dd/MM/yyyy')}
               </dd>
             </div>
             <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -257,7 +262,7 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
                         )}
                       </h4>
                       <div className="mt-2 text-sm text-gray-500">
-                        <p><span className="font-medium">Dosage:</span> {item.dosage}</p>
+                        <p><span className="font-medium">Dosage:</span> {item.dose}</p>
                         <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
                       </div>
                     </div>

@@ -76,16 +76,30 @@ export default function NewPrescriptionPage() {
   // Add a new patient
   const handleAddPatient = async (patientData: Omit<Patient, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      console.log('Adding patient with data:', patientData);
+      
+      // Validate required fields on the server side as well
+      if (!patientData.name || !patientData.dob || !patientData.gender || !patientData.phone) {
+        throw new Error('Missing required patient fields');
+      }
+      
       const { data, error } = await supabase
         .from('patients')
         .insert(patientData)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+      
+      console.log('Successfully added patient:', data);
       return data;
     } catch (err: any) {
       console.error('Error adding patient:', err);
+      // Show a more user-friendly error message
+      alert(`Failed to add patient: ${err.message || 'Unknown error'}`);
       throw err;
     }
   };

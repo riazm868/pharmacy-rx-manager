@@ -50,7 +50,45 @@ export default function PatientForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData as Omit<Patient, 'id' | 'created_at' | 'updated_at'>);
+    
+    // Collect validation errors
+    const errors: string[] = [];
+    
+    if (!formData.name?.trim()) errors.push('Name is required');
+    if (!formData.dob) errors.push('Date of birth is required');
+    if (!formData.gender) errors.push('Gender is required');
+    if (!formData.phone?.trim()) errors.push('Phone number is required');
+    
+    // Display all validation errors at once
+    if (errors.length > 0) {
+      alert(`Please fix the following issues:\n${errors.join('\n')}`);
+      return;
+    }
+    
+    try {
+      // Ensure all required fields are present with default values if needed
+      const patientData: Omit<Patient, 'id' | 'created_at' | 'updated_at'> = {
+        name: formData.name?.trim() || '',
+        dob: formData.dob || '',
+        gender: formData.gender || '',
+        id_number: formData.id_number?.trim() || '',
+        dp_number: formData.dp_number?.trim() || '',
+        birth_cert_pin: formData.birth_cert_pin?.trim() || '',
+        phone: formData.phone?.trim() || '',
+        phone2: formData.phone2?.trim() || '',
+        email: formData.email?.trim() || '',
+        address: formData.address?.trim() || '',
+        city: formData.city?.trim() || '',
+        state: formData.state?.trim() || '',
+        zip: formData.zip?.trim() || ''
+      };
+      
+      console.log('Submitting patient data:', patientData);
+      onSubmit(patientData);
+    } catch (error) {
+      console.error('Error preparing patient data:', error);
+      alert('An error occurred while preparing the patient data. Please check the form and try again.');
+    }
   };
 
   return (
