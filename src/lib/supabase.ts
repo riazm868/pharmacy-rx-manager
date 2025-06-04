@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { Prescription, Patient, Doctor, Medication } from '@/types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -6,7 +7,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper functions for database operations
-export const getPatients = async (searchTerm = '') => {
+export const getPatients = async (searchTerm = ''): Promise<Patient[]> => {
   const query = supabase
     .from('patients')
     .select('*');
@@ -18,7 +19,7 @@ export const getPatients = async (searchTerm = '') => {
   return query.order('name');
 };
 
-export const getPatientById = async (id: string) => {
+export const getPatientById = async (id: string): Promise<Patient | null> => {
   return supabase
     .from('patients')
     .select('*')
@@ -26,7 +27,7 @@ export const getPatientById = async (id: string) => {
     .single();
 };
 
-export const createPatient = async (patient: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
+export const createPatient = async (patient: Omit<Patient, 'id' | 'created_at' | 'updated_at'>): Promise<Patient> => {
   return supabase
     .from('patients')
     .insert(patient)
@@ -34,7 +35,7 @@ export const createPatient = async (patient: Omit<any, 'id' | 'created_at' | 'up
     .single();
 };
 
-export const getDoctors = async (searchTerm = '') => {
+export const getDoctors = async (searchTerm = ''): Promise<Doctor[]> => {
   const query = supabase
     .from('doctors')
     .select('*');
@@ -46,7 +47,7 @@ export const getDoctors = async (searchTerm = '') => {
   return query.order('name');
 };
 
-export const getDoctorById = async (id: string) => {
+export const getDoctorById = async (id: string): Promise<Doctor | null> => {
   return supabase
     .from('doctors')
     .select('*')
@@ -54,7 +55,7 @@ export const getDoctorById = async (id: string) => {
     .single();
 };
 
-export const createDoctor = async (doctor: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
+export const createDoctor = async (doctor: Omit<Doctor, 'id' | 'created_at' | 'updated_at'>): Promise<Doctor> => {
   return supabase
     .from('doctors')
     .insert(doctor)
@@ -62,7 +63,7 @@ export const createDoctor = async (doctor: Omit<any, 'id' | 'created_at' | 'upda
     .single();
 };
 
-export const getMedications = async (searchTerm = '') => {
+export const getMedications = async (searchTerm = ''): Promise<Medication[]> => {
   const query = supabase
     .from('medications')
     .select('*');
@@ -74,7 +75,7 @@ export const getMedications = async (searchTerm = '') => {
   return query.order('name');
 };
 
-export const getMedicationById = async (id: string) => {
+export const getMedicationById = async (id: string): Promise<Medication | null> => {
   return supabase
     .from('medications')
     .select('*')
@@ -82,7 +83,7 @@ export const getMedicationById = async (id: string) => {
     .single();
 };
 
-export const createMedication = async (medication: Omit<any, 'id' | 'created_at' | 'updated_at'>) => {
+export const createMedication = async (medication: Omit<Medication, 'id' | 'created_at' | 'updated_at'>): Promise<Medication> => {
   return supabase
     .from('medications')
     .insert(medication)
@@ -91,9 +92,9 @@ export const createMedication = async (medication: Omit<any, 'id' | 'created_at'
 };
 
 export const createPrescription = async (
-  prescription: Omit<any, 'id' | 'created_at' | 'updated_at'>,
-  medications: Array<Omit<any, 'id' | 'prescription_id' | 'created_at' | 'updated_at'>>
-) => {
+  prescription: Omit<Prescription, 'id' | 'created_at' | 'updated_at'>,
+  medications: Array<Omit<Medication, 'id' | 'prescription_id' | 'created_at' | 'updated_at'>>
+): Promise<{ prescription: Prescription, medications: Medication[] }> => {
   // First create the prescription
   const { data: prescriptionData, error: prescriptionError } = await supabase
     .from('prescriptions')
@@ -123,7 +124,7 @@ export const createPrescription = async (
   return { prescription: prescriptionData, medications: medicationsData };
 };
 
-export const getPrescriptionsByPatientId = async (patientId: string) => {
+export const getPrescriptionsByPatientId = async (patientId: string): Promise<Prescription[]> => {
   const { data: prescriptions, error: prescriptionsError } = await supabase
     .from('prescriptions')
     .select(`
