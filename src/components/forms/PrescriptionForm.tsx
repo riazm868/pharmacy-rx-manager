@@ -378,7 +378,7 @@ export default function PrescriptionForm({
   }, []);
 
   return (
-    <form onSubmit={(e) => handleSubmit(e)} className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Form Error Message */}
       {formError && (
         <div className="rounded-md bg-red-50 p-4 mb-4">
@@ -869,6 +869,6 @@ export default function PrescriptionForm({
           prescriptionMedication={selectedMedicationForPrint.prescriptionMedication}
         />
       )}
-    </form>
+    </div>
   );
 }
