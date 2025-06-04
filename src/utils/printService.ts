@@ -30,14 +30,37 @@ if (typeof window !== 'undefined' && window.localStorage) {
 }
 
 /**
+ * Normalize URL to ensure it uses HTTP protocol
+ * @param url The URL to normalize
+ * @returns The normalized URL with HTTP protocol
+ */
+export const normalizeUrl = (url: string): string => {
+  if (!url) return url;
+  
+  // Replace https:// with http://
+  if (url.toLowerCase().startsWith('https://')) {
+    return url.replace(/^https:\/\//i, 'http://');
+  }
+  
+  // Add http:// if no protocol is specified
+  if (!url.toLowerCase().startsWith('http://')) {
+    return `http://${url}`;
+  }
+  
+  return url;
+};
+
+/**
  * Set the print server URL
  * @param url The URL of the print server (e.g., http://192.168.1.100:5000)
  */
 export const setPrintServerUrl = (url: string): void => {
   if (url) {
-    PRINT_SERVER_CONFIG.url = url;
+    // Normalize URL to ensure HTTP protocol
+    const normalizedUrl = normalizeUrl(url);
+    PRINT_SERVER_CONFIG.url = normalizedUrl;
     if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem('zebra_print_server_url', url);
+      localStorage.setItem('zebra_print_server_url', normalizedUrl);
     }
   }
 };
@@ -47,7 +70,8 @@ export const setPrintServerUrl = (url: string): void => {
  * @returns string The current print server URL
  */
 export const getPrintServerUrl = (): string => {
-  return PRINT_SERVER_CONFIG.url;
+  // Ensure the URL uses HTTP protocol
+  return normalizeUrl(PRINT_SERVER_CONFIG.url);
 };
 
 /**
@@ -77,7 +101,9 @@ export const getSelectedPrinter = (): string => {
  */
 export const checkPrintServerStatus = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${PRINT_SERVER_CONFIG.url}${PRINT_SERVER_CONFIG.endpoints.status}`, {
+    // Ensure the URL uses HTTP protocol
+    const url = normalizeUrl(PRINT_SERVER_CONFIG.url);
+    const response = await fetch(`${url}${PRINT_SERVER_CONFIG.endpoints.status}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -105,7 +131,9 @@ export const checkPrintServerStatus = async (): Promise<boolean> => {
  */
 export const getAvailablePrinters = async (): Promise<string[]> => {
   try {
-    const response = await fetch(`${PRINT_SERVER_CONFIG.url}${PRINT_SERVER_CONFIG.endpoints.printers}`, {
+    // Ensure the URL uses HTTP protocol
+    const url = normalizeUrl(PRINT_SERVER_CONFIG.url);
+    const response = await fetch(`${url}${PRINT_SERVER_CONFIG.endpoints.printers}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -293,13 +321,13 @@ export const printToZebra = async (labelData: any): Promise<boolean> => {
     
     // Debug log
     console.log('Sending to print server:', {
-      url: `${PRINT_SERVER_CONFIG.url}${PRINT_SERVER_CONFIG.endpoints.print}`,
+      url: `${normalizeUrl(PRINT_SERVER_CONFIG.url)}${PRINT_SERVER_CONFIG.endpoints.print}`,
       zplCode,
       printer: selectedPrinter
     });
     
     // Send the ZPL code to the print server
-    const response = await fetch(`${PRINT_SERVER_CONFIG.url}${PRINT_SERVER_CONFIG.endpoints.print}`, {
+    const response = await fetch(`${normalizeUrl(PRINT_SERVER_CONFIG.url)}${PRINT_SERVER_CONFIG.endpoints.print}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -128,7 +128,7 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
               id="serverUrl"
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
-              placeholder="http://192.168.1.100:5000"
+              placeholder="http://192.168.30.106:5000"
               className="flex-1 block w-full border border-gray-300 rounded-l-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
             <button
@@ -140,7 +140,7 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
             </button>
           </div>
           <p className="mt-1 text-xs text-gray-500">
-            Enter the URL of the Windows PC running the Zebra print server
+            Enter the URL of the Windows PC running the Zebra print server (HTTP protocol required)
           </p>
         </div>
       </form>
