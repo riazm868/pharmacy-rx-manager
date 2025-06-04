@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { checkPrintServerStatus, getAvailablePrinters, setPrintServerUrl } from '@/utils/printService';
+import { checkPrintServerStatus, getAvailablePrinters, setPrintServerUrl, getPrintServerUrl, setSelectedPrinter, getSelectedPrinter } from '@/utils/printService';
 
 interface PrintServerConfigProps {
   onClose?: () => void;
@@ -10,14 +10,23 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
   const [isChecking, setIsChecking] = useState<boolean>(false);
   const [serverStatus, setServerStatus] = useState<'unknown' | 'online' | 'offline'>('unknown');
   const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+  const [selectedPrinter, setSelectedPrinter] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [testPrintResult, setTestPrintResult] = useState<{success: boolean; message: string} | null>(null);
+  const [isTesting, setIsTesting] = useState<boolean>(false);
 
-  // Load the saved URL from localStorage on component mount
+  // Load the saved URL and printer from localStorage on component mount
   useEffect(() => {
-    const savedUrl = localStorage.getItem('zebra_print_server_url');
+    const savedUrl = getPrintServerUrl();
+    const savedPrinter = getSelectedPrinter();
+    
     if (savedUrl) {
       setServerUrl(savedUrl);
       checkServer(savedUrl);
+    }
+    
+    if (savedPrinter) {
+      setSelectedPrinter(savedPrinter);
     }
   }, []);
 
@@ -38,8 +47,16 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
         // Get available printers
         const printers = await getAvailablePrinters();
         setAvailablePrinters(printers);
+        
+        // Set the first printer as selected by default
+        if (printers.length > 0) {
+          // Try to find a Zebra printer first
+          const zebraPrinter = printers.find(p => p.toLowerCase().includes('zebra'));
+          setSelectedPrinter(zebraPrinter || printers[0]);
+        }
       } else {
         setAvailablePrinters([]);
+        setSelectedPrinter('');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred while checking the print server');
@@ -54,6 +71,46 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     checkServer(serverUrl);
+  };
+  
+  // Handle test print
+  const handleTestPrint = async () => {
+    if (!selectedPrinter) {
+      setError('Please select a printer first');
+      return;
+    }
+    
+    setIsTesting(true);
+    setTestPrintResult(null);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${serverUrl}/test_print`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          printer: selectedPrinter
+        }),
+      });
+      
+      const data = await response.json();
+      
+      setTestPrintResult({
+        success: data.success,
+        message: data.success ? 
+          `Test print sent successfully to ${selectedPrinter}` : 
+          `Failed to send test print: ${data.error || 'Unknown error'}`
+      });
+    } catch (err: any) {
+      setTestPrintResult({
+        success: false,
+        message: `Error: ${err.message || 'Failed to connect to print server'}`
+      });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   return (
@@ -103,6 +160,23 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
         </div>
       )}
       
+      {testPrintResult && (
+        <div className={`mt-4 p-3 rounded-md ${testPrintResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          <div className="flex items-center">
+            {testPrintResult.success ? (
+              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="font-medium">{testPrintResult.message}</span>
+          </div>
+        </div>
+      )}
+      
       <div className="mt-4">
         <h3 className="text-sm font-medium text-gray-700 mb-2">Server Status</h3>
         <div className="flex items-center">
@@ -120,13 +194,39 @@ const PrintServerConfig: React.FC<PrintServerConfigProps> = ({ onClose }) => {
       {availablePrinters.length > 0 && (
         <div className="mt-4">
           <h3 className="text-sm font-medium text-gray-700 mb-2">Available Printers</h3>
-          <ul className="border border-gray-200 rounded-md divide-y divide-gray-200">
+          <div className="border border-gray-200 rounded-md divide-y divide-gray-200">
             {availablePrinters.map((printer, index) => (
-              <li key={index} className="px-3 py-2 text-sm text-gray-600">
-                {printer}
-              </li>
+              <div key={index} className="px-3 py-2 flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    type="radio"
+                    id={`printer-${index}`}
+                    name="printer"
+                    value={printer}
+                    checked={selectedPrinter === printer}
+                    onChange={() => {
+                      // Update local state and save to localStorage
+                      setSelectedPrinter(printer);
+                    }}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  />
+                  <label htmlFor={`printer-${index}`} className="ml-2 text-sm text-gray-600">
+                    {printer}
+                  </label>
+                </div>
+                {selectedPrinter === printer && (
+                  <button
+                    type="button"
+                    onClick={handleTestPrint}
+                    disabled={isTesting || serverStatus !== 'online'}
+                    className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                  >
+                    {isTesting ? 'Sending...' : 'Test Print'}
+                  </button>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
       

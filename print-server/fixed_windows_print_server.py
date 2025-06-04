@@ -24,22 +24,29 @@ logging.basicConfig(
         logging.FileHandler('print_server.log')
     ]
 )
+logger = logging.getLogger('zebra_print_server')
 
-logger = logging.getLogger(__name__)
-
+# Initialize Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-# Configure CORS more explicitly
-CORS(app, resources={
-    r"/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
-
-# Print job history
+# Store print jobs in memory
 print_jobs = []
+
+def add_cors_headers(response):
+    """Add CORS headers to response"""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+def build_cors_preflight_response():
+    """Build response for CORS preflight requests"""
+    response = make_response()
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 @app.route('/status', methods=['GET', 'OPTIONS'])
 def status():
@@ -47,32 +54,12 @@ def status():
     if request.method == 'OPTIONS':
         return build_cors_preflight_response()
         
-    logger.info("Status check received")
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
     response = make_response(jsonify({
         "status": "online",
         "version": "1.0.0",
-        "hostname": hostname,
-        "ip_address": ip_address,
         "timestamp": time.time()
     }))
     return add_cors_headers(response)
-
-# Helper function to add CORS headers to responses
-def add_cors_headers(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-    return response
-
-# Helper function for OPTIONS requests
-def build_cors_preflight_response():
-    response = make_response()
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-    return response
 
 @app.route('/printers', methods=['GET', 'OPTIONS'])
 def get_printers():
@@ -80,27 +67,17 @@ def get_printers():
     if request.method == 'OPTIONS':
         return build_cors_preflight_response()
         
-    logger.info("Printer list requested")
     try:
-        printer_list = []
-        default_printer = None
-        
-        # Get all printers
+        printers = []
         for printer in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL, None, 1):
-            printer_name = printer[2]
-            printer_list.append(printer_name)
-            
-            # Check if this is the default printer
-            if win32print.GetDefaultPrinter() == printer_name:
-                default_printer = printer_name
-        
-        logger.info(f"Found {len(printer_list)} printers. Default: {default_printer}")
+            printers.append(printer[2])
         
         response = make_response(jsonify({
-            "printers": printer_list,
-            "default": default_printer
+            "printers": printers,
+            "default": win32print.GetDefaultPrinter()
         }))
         return add_cors_headers(response)
+        
     except Exception as e:
         logger.error(f"Error getting printer list: {str(e)}")
         response = make_response(jsonify({
@@ -352,6 +329,13 @@ if __name__ == '__main__':
     logger.info(f"Starting Zebra Print Server on {hostname} ({ip_address}), port {port}")
     print(f"*****************************************************")
     print(f"* Zebra Print Server running at: http://{ip_address}:{port} *")
-    print(f"* Use this URL in your Pharmacy RX Manager app      *")
     print(f"*****************************************************")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    print(f"Available printers:")
+    try:
+        for i, printer in enumerate(win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL, None, 1)):
+            print(f"  {i+1}. {printer[2]}")
+        print(f"Default printer: {win32print.GetDefaultPrinter()}")
+    except Exception as e:
+        print(f"Error listing printers: {str(e)}")
+    
+    app.run(host='0.0.0.0', port=port, debug=False)
