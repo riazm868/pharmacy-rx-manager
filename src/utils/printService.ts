@@ -103,10 +103,30 @@ export const checkPrintServerStatus = async (): Promise<boolean> => {
   try {
     // Ensure the URL uses HTTP protocol
     const url = normalizeUrl(PRINT_SERVER_CONFIG.url);
+    
+    // Log the request attempt for debugging
+    console.log(`Checking print server status at: ${url}${PRINT_SERVER_CONFIG.endpoints.status}`);
+    
+    // Try with no-cors mode first to test basic connectivity
+    try {
+      const pingResponse = await fetch(`${url}${PRINT_SERVER_CONFIG.endpoints.status}`, {
+        method: 'GET',
+        mode: 'no-cors',
+        signal: AbortSignal.timeout(2000) // 2 second timeout
+      });
+      
+      console.log('Ping response type:', pingResponse.type);
+      // If we get here, the server is at least reachable
+    } catch (pingError) {
+      console.error('Cannot reach print server (ping test):', pingError);
+    }
+    
+    // Now try the actual CORS request
     const response = await fetch(`${url}${PRINT_SERVER_CONFIG.endpoints.status}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       // Add a timeout to prevent long waits
       signal: AbortSignal.timeout(5000), // 5 second timeout
@@ -114,13 +134,24 @@ export const checkPrintServerStatus = async (): Promise<boolean> => {
       credentials: 'omit' // Don't send cookies
     });
     
+    console.log('Print server response status:', response.status);
+    
     if (!response.ok) {
       throw new Error(`Server responded with status: ${response.status}`);
     }
+    
     const data = await response.json();
+    console.log('Print server response data:', data);
+    
     return data.status === 'online';
   } catch (error) {
     console.error('Error checking print server status:', error);
+    // Log more detailed error information
+    if (error instanceof TypeError) {
+      console.error('Network error - likely CORS or connectivity issue');
+    } else if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error('Request timed out - server might be unreachable or slow');
+    }
     return false;
   }
 };
