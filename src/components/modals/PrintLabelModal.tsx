@@ -9,8 +9,10 @@ interface PrintLabelModalProps {
   prescription: Prescription;
   patient: Patient;
   doctor: Doctor;
-  medication: Medication;
-  prescriptionMedication: PrescriptionMedication;
+  medications: Array<{
+    medication: Medication;
+    prescriptionMedication: PrescriptionMedication;
+  }>;
 }
 
 const PrintLabelModal: React.FC<PrintLabelModalProps> = ({
@@ -19,8 +21,7 @@ const PrintLabelModal: React.FC<PrintLabelModalProps> = ({
   prescription,
   patient,
   doctor,
-  medication,
-  prescriptionMedication
+  medications
 }) => {
   return (
     <Dialog
@@ -33,17 +34,16 @@ const PrintLabelModal: React.FC<PrintLabelModalProps> = ({
       
       {/* Full-screen container for centering */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="mx-auto max-w-xl rounded bg-white p-6 shadow-xl">
+        <Dialog.Panel className="mx-auto max-w-3xl rounded bg-white p-6 shadow-xl">
           <Dialog.Title className="text-lg font-medium leading-6 text-gray-900 mb-4">
-            Print Prescription Label
+            Print Prescription Labels ({medications.length} medication{medications.length !== 1 ? 's' : ''})
           </Dialog.Title>
           
           <PrintPrescriptionLabel
             prescription={prescription}
             patient={patient}
             doctor={doctor}
-            medication={medication}
-            prescriptionMedication={prescriptionMedication}
+            medications={medications}
             onClose={onClose}
           />
         </Dialog.Panel>

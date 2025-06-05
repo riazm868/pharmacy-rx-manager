@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Prescription, Patient, Doctor, Medication, PrescriptionMedication } from '@/types/database';
 import { format } from 'date-fns';
+import PrintLabelModal from '@/components/modals/PrintLabelModal';
 
 type PrescriptionWithDetails = Prescription & {
   patient: Patient;
@@ -24,6 +25,7 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => {
     const fetchPrescription = async () => {
@@ -166,16 +168,24 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
             : `Prescription Reference: ${prescription.id.substring(0, 8).toUpperCase()}`
           }
         </h1>
-        <div className="flex space-x-4">
+        <div className="flex space-x-2">
           <Link
             href={`/prescriptions/edit/${prescription.id}`}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             Edit
           </Link>
           <button
+            type="button"
+            onClick={() => setShowPrintModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            Print Labels
+          </button>
+          <button
+            type="button"
             onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
           >
             Delete
           </button>
@@ -248,28 +258,126 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
               No medications added to this prescription.
             </div>
           ) : (
-            <ul className="divide-y divide-gray-200">
-              {medications.map((item) => (
-                <li key={item.id} className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-indigo-600">
-                        <Link href={`/medications/${item.medication.id}`} className="hover:underline">
-                          {item.medication.name}
-                        </Link>
-                        {item.medication.strength !== 'N/A' && (
-                          <span className="ml-1">{item.medication.strength}</span>
-                        )}
-                      </h4>
-                      <div className="mt-2 text-sm text-gray-500">
-                        <p><span className="font-medium">Dosage:</span> {item.dose}</p>
-                        <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
+            <div className="divide-y divide-gray-200">
+              {medications.map((item, index) => {
+                // Generate SIG preview
+                const generateSIGPreview = () => {
+                  const routeMap: { [key: string]: string } = {
+                    'PO': 'by mouth',
+                    'IV': 'intravenously',
+                    'IM': 'intramuscularly',
+                    'SC': 'subcutaneously',
+                    'SL': 'sublingually',
+                    'TOP': 'topically',
+                    'INH': 'by inhalation',
+                    'PR': 'rectally',
+                    'OPH': 'in the eye',
+                    'OT': 'in the ear'
+                  };
+
+                  const frequencyMap: { [key: string]: string } = {
+                    'QD': 'once daily',
+                    'BID': 'twice daily',
+                    'TID': 'three times daily',
+                    'QID': 'four times daily',
+                    'Q4H': 'every 4 hours',
+                    'Q6H': 'every 6 hours',
+                    'Q8H': 'every 8 hours',
+                    'Q12H': 'every 12 hours',
+                    'PRN': 'as needed',
+                    'QHS': 'at bedtime',
+                    'AC': 'before meals',
+                    'PC': 'after meals'
+                  };
+
+                  let sig = `Take ${item.dose} ${item.unit}`;
+                  if (item.route) {
+                    sig += ` ${routeMap[item.route] || item.route}`;
+                  }
+                  if (item.frequency) {
+                    sig += ` ${frequencyMap[item.frequency] || item.frequency}`;
+                  }
+                  if (item.days) {
+                    sig += ` for ${item.days} days`;
+                  }
+                  if (item.notes) {
+                    sig += `. ${item.notes}`;
+                  }
+                  return sig;
+                };
+
+                return (
+                  <div key={item.id} className="p-6 bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 hover:to-gray-50 transition-colors">
+                    {/* Medication Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-indigo-100 text-indigo-800 text-sm font-medium">
+                          {index + 1}
+                        </span>
+                        <h4 className="text-lg font-medium text-indigo-600">
+                          <Link href={`/medications/${item.medication.id}`} className="hover:underline">
+                            {item.medication.name}
+                            {item.medication.strength !== 'N/A' && (
+                              <span className="ml-1">{item.medication.strength}</span>
+                            )}
+                          </Link>
+                        </h4>
                       </div>
                     </div>
+
+                    {/* Medication Details Grid */}
+                    <div className="grid grid-cols-12 gap-4 mb-4">
+                      {/* Row 1 */}
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Dose</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.dose}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Unit</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.unit}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Route</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.route || 'PO'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Frequency</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.frequency}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Days Supply</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.days}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.quantity}</p>
+                      </div>
+                    </div>
+
+                    {/* Row 2 */}
+                    <div className="grid grid-cols-12 gap-4 mb-4">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Refills</label>
+                        <p className="text-sm font-semibold text-gray-900">{item.refills || 0}</p>
+                      </div>
+                      {item.notes && (
+                        <div className="col-span-10">
+                          <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                          <p className="text-sm text-gray-900">{item.notes}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SIG Preview */}
+                    <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <span className="font-medium">Instructions:</span> {generateSIGPreview()}
+                      </p>
+                    </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -318,6 +426,21 @@ export default function PrescriptionDetailPage({ params }: { params: { id: strin
             </div>
           </div>
         </div>
+      )}
+
+      {/* Print Modal */}
+      {prescription && showPrintModal && (
+        <PrintLabelModal
+          isOpen={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          prescription={prescription}
+          patient={prescription.patient}
+          doctor={prescription.doctor}
+          medications={medications.map(m => ({
+            medication: m.medication,
+            prescriptionMedication: m
+          }))}
+        />
       )}
     </div>
   );

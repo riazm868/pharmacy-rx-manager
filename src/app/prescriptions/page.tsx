@@ -109,72 +109,175 @@ export default function PrescriptionsPage() {
           {searchTerm ? 'No prescriptions found matching your search.' : 'No prescriptions found. Add a new prescription to get started.'}
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {filteredPrescriptions.map((prescription) => (
-              <li key={prescription.id}>
-                <div className="relative">
-                  <Link href={`/prescriptions/${prescription.id}`} className="block hover:bg-gray-50">
-                    <div className="px-4 py-4 sm:px-6">
-                      {/* Header with RX number and date */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <p className="text-sm font-medium text-indigo-600 truncate">
-                            {prescription.prescription_number 
-                              ? `RX: ${prescription.prescription_number}` 
-                              : `Ref: ${prescription.id.substring(0, 8).toUpperCase()}`
-                            }
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <PrintButton prescriptionId={prescription.id} />
-                          <div className="flex-shrink-0">
-                            <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                              {format(new Date(prescription.date), 'dd/MM/yyyy')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    
-                    {/* Patient and Doctor in a row */}
-                    <div className="mt-2 grid grid-cols-2 gap-4">
+        <div className="space-y-4">
+          {/* Table Header - Hidden on mobile */}
+          <div className="hidden md:block bg-gray-50 rounded-lg shadow-sm p-4">
+            <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="col-span-2">RX Number</div>
+              <div className="col-span-1">Date</div>
+              <div className="col-span-2">Patient</div>
+              <div className="col-span-2">Doctor</div>
+              <div className="col-span-4">Medications</div>
+              <div className="col-span-1 text-right">Actions</div>
+            </div>
+          </div>
+
+          {/* Prescription Rows */}
+          {filteredPrescriptions.map((prescription) => (
+            <div key={prescription.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <Link href={`/prescriptions/${prescription.id}`} className="block">
+                <div className="p-4">
+                  {/* Mobile Layout */}
+                  <div className="md:hidden space-y-3">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-sm text-gray-500">
-                          <span className="font-medium">Patient:</span> {prescription.patient?.name}
+                        <p className="text-sm font-medium text-indigo-600">
+                          {prescription.prescription_number 
+                            ? `RX: ${prescription.prescription_number}` 
+                            : `Ref: ${prescription.id.substring(0, 8).toUpperCase()}`
+                          }
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {format(new Date(prescription.date), 'dd/MM/yyyy')}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          <span className="font-medium">Doctor:</span> {prescription.doctor?.name}
-                        </p>
+                      <div className="flex space-x-2" onClick={(e) => e.preventDefault()}>
+                        <PrintButton prescriptionId={prescription.id} className="text-green-600 hover:text-green-900 text-sm font-medium" />
+                        <Link
+                          href={`/prescriptions/edit/${prescription.id}`}
+                          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Edit
+                        </Link>
                       </div>
                     </div>
                     
-                    {/* Medications */}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-gray-500">Patient:</span>
+                        <p className="font-medium text-gray-900">{prescription.patient?.name}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Doctor:</span>
+                        <p className="text-gray-900">{prescription.doctor?.name}</p>
+                      </div>
+                    </div>
+
                     {prescription.medications && prescription.medications.length > 0 && (
-                      <div className="mt-3">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Medications</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {prescription.medications.map((med) => (
-                            <div key={med.id} className="text-sm bg-gray-50 rounded p-2">
-                              <div className="flex justify-between">
-                                <span className="font-medium">{med.medication.name} {med.medication.strength}</span>
-                                <span className="text-gray-500">{med.quantity} {med.unit}</span>
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {med.dose} - {med.frequency} - {med.days} days
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Medications</p>
+                        <div className="space-y-1">
+                          {prescription.medications.slice(0, 2).map((med, index) => (
+                            <div key={med.id} className="flex items-start space-x-2">
+                              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-medium flex-shrink-0">
+                                {index + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900">
+                                  <span className="font-medium">{med.medication.name}</span>
+                                  {med.medication.strength !== 'N/A' && (
+                                    <span className="text-gray-500 ml-1">{med.medication.strength}</span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {med.dose} {med.unit} • {med.frequency} • {med.days} days
+                                </p>
                               </div>
                             </div>
                           ))}
+                          {prescription.medications.length > 2 && (
+                            <p className="text-xs text-gray-500 pl-7">
+                              +{prescription.medications.length - 2} more medication{prescription.medications.length - 2 > 1 ? 's' : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden md:grid grid-cols-12 gap-4 items-center">
+                    {/* RX Number */}
+                    <div className="col-span-2">
+                      <p className="text-sm font-medium text-indigo-600">
+                        {prescription.prescription_number 
+                          ? `RX: ${prescription.prescription_number}` 
+                          : `Ref: ${prescription.id.substring(0, 8).toUpperCase()}`
+                        }
+                      </p>
                     </div>
-                  </Link>
+
+                    {/* Date */}
+                    <div className="col-span-1">
+                      <p className="text-sm text-gray-900">
+                        {format(new Date(prescription.date), 'dd/MM/yyyy')}
+                      </p>
+                    </div>
+
+                    {/* Patient */}
+                    <div className="col-span-2">
+                      <p className="text-sm font-medium text-gray-900">
+                        {prescription.patient?.name}
+                      </p>
+                    </div>
+
+                    {/* Doctor */}
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-900">
+                        {prescription.doctor?.name}
+                      </p>
+                    </div>
+
+                    {/* Medications */}
+                    <div className="col-span-4">
+                      {prescription.medications && prescription.medications.length > 0 ? (
+                        <div className="space-y-1">
+                          {prescription.medications.slice(0, 2).map((med, index) => (
+                            <div key={med.id} className="flex items-center space-x-2">
+                              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-indigo-100 text-indigo-800 text-xs font-medium">
+                                {index + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-gray-900 truncate">
+                                  <span className="font-medium">{med.medication.name}</span>
+                                  {med.medication.strength !== 'N/A' && (
+                                    <span className="text-gray-500 ml-1">{med.medication.strength}</span>
+                                  )}
+                                  <span className="text-gray-500 ml-2">
+                                    • {med.dose} {med.unit} • {med.frequency} • {med.days} days
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                          {prescription.medications.length > 2 && (
+                            <p className="text-xs text-gray-500 pl-7">
+                              +{prescription.medications.length - 2} more medication{prescription.medications.length - 2 > 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">No medications</p>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-1 flex justify-end space-x-2" onClick={(e) => e.preventDefault()}>
+                      <PrintButton prescriptionId={prescription.id} className="text-green-600 hover:text-green-900 text-sm font-medium" />
+                      <Link
+                        href={`/prescriptions/edit/${prescription.id}`}
+                        className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Edit
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+              </Link>
+            </div>
+          ))}
         </div>
       )}
     </div>
