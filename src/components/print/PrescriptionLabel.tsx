@@ -13,20 +13,52 @@ interface PrescriptionLabelProps {
   pharmacyPhone: string;
 }
 
+// Route abbreviation mappings
+const routeMap: { [key: string]: string } = {
+  'PO': 'BY MOUTH',
+  'IM': 'INTRAMUSCULAR',
+  'IV': 'INTRAVENOUS',
+  'SC': 'SUBCUTANEOUS',
+  'SL': 'SUBLINGUAL',
+  'PR': 'RECTALLY',
+  'TOP': 'TOPICALLY',
+  'INH': 'BY INHALATION',
+  'NASAL': 'NASALLY',
+  'OPTH': 'IN THE EYE',
+  'OTIC': 'IN THE EAR'
+};
+
 // This component is designed for a 3-inch by 2-inch label
 const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
   ({ prescription, patient, doctor, medication, prescriptionMedication, pharmacyName, pharmacyAddress, pharmacyPhone }, ref) => {
     // Format the prescription instructions (SIG)
     const formatSig = () => {
-      const { dose, frequency, days, route } = prescriptionMedication;
+      const { dose, frequency, days, route, unit } = prescriptionMedication;
+      
+      // Parse dose to check if it's singular or plural
+      const doseNum = parseFloat(dose);
+      const isPlural = doseNum > 1;
+      
+      // Determine the unit text (singular vs plural)
+      let unitText = unit.toUpperCase();
+      if (unitText === 'TABLETS' && !isPlural) {
+        unitText = 'TABLET';
+      } else if (unitText === 'TABLET' && isPlural) {
+        unitText = 'TABLETS';
+      } else if (unitText === 'CAPSULES' && !isPlural) {
+        unitText = 'CAPSULE';
+      } else if (unitText === 'CAPSULE' && isPlural) {
+        unitText = 'CAPSULES';
+      }
       
       // Check if we have all the necessary information
       if (dose && frequency) {
-        let sig = `TAKE ${dose} ${prescriptionMedication.unit.toUpperCase()}`;
+        let sig = `TAKE ${dose} ${unitText}`;
         
-        // Add route if available
+        // Add route - convert abbreviations to full text
         if (route) {
-          sig += ` ${route.toUpperCase()}`;
+          const fullRoute = routeMap[route.toUpperCase()] || route.toUpperCase();
+          sig += ` ${fullRoute}`;
         } else {
           sig += ` BY MOUTH`;
         }
@@ -46,11 +78,7 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
     };
 
     // Generate a prescription number from the prescription ID
-    const rxNumber = `${prescription.id.substring(0, 7)}-${prescription.id.substring(7, 12)}`.toUpperCase();
-    
-    // Format the expiration date (1 year from prescription date)
-    const expirationDate = new Date(prescription.date);
-    expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+    const rxNumber = prescription.prescription_number || `${prescription.id.substring(0, 7)}-${prescription.id.substring(7, 12)}`.toUpperCase();
     
     // Format dates as dd/mm/yy
     const formatDateDDMMYY = (date: Date): string => {
@@ -64,13 +92,15 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
         style={{
           width: '3in',
           height: '2in',
-          fontFamily: 'Helvetica, Arial, sans-serif',
-          fontSize: '10pt',
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '11pt',
           borderCollapse: 'collapse',
           border: '2px solid #000',
           tableLayout: 'fixed',
           pageBreakInside: 'avoid',
-          backgroundColor: 'white'
+          backgroundColor: 'white',
+          color: '#000',
+          fontWeight: '500'
         }}
       >
         <tbody>
@@ -79,18 +109,20 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
             <td style={{ 
               padding: '0.08in 0.1in', 
               fontWeight: 'bold', 
-              fontSize: '14pt', 
+              fontSize: '15pt', 
               width: '60%',
-              borderBottom: '1px solid #000'
+              borderBottom: '1px solid #000',
+              color: '#000'
             }}>
               {patient.name.toUpperCase()}
             </td>
             <td style={{ 
               padding: '0.08in 0.1in', 
               textAlign: 'right', 
-              fontSize: '10pt', 
+              fontSize: '11pt', 
               width: '40%',
-              borderBottom: '1px solid #000'
+              borderBottom: '1px solid #000',
+              fontWeight: '600'
             }}>
               DATE: {formatDateDDMMYY(new Date(prescription.date))}
             </td>
@@ -100,8 +132,9 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
           <tr>
             <td style={{ 
               padding: '0.05in 0.1in',
-              fontSize: '11pt',
-              borderBottom: '1px solid #000'
+              fontSize: '12pt',
+              borderBottom: '1px solid #000',
+              fontWeight: '600'
             }}>
               <span style={{ fontWeight: 'bold' }}>Rx: </span>
               <span>{rxNumber}</span>
@@ -110,10 +143,10 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
               padding: '0.05in 0.1in',
               textAlign: 'right',
               fontWeight: 'bold',
-              fontSize: '11pt',
+              fontSize: '12pt',
               borderBottom: '1px solid #000'
             }}>
-              {medication.strength || 'N/A'}
+              {medication.strength !== 'N/A' ? medication.strength : ''}
             </td>
           </tr>
           
@@ -121,8 +154,9 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
           <tr>
             <td colSpan={2} style={{ 
               padding: '0.05in 0.1in',
-              fontSize: '11pt',
-              borderBottom: '1px solid #000'
+              fontSize: '12pt',
+              borderBottom: '1px solid #000',
+              fontWeight: '600'
             }}>
               <span style={{ fontWeight: 'bold' }}>Dr. </span>
               <span>{doctor.name}</span>
@@ -132,43 +166,40 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
           {/* Medication Name Row */}
           <tr>
             <td colSpan={2} style={{ 
-              padding: '0.05in 0.1in',
+              padding: '0.08in 0.1in',
               textAlign: 'left',
               fontWeight: 'bold',
-              fontSize: '12pt',
+              fontSize: '14pt',
+              color: '#000'
             }}>
-              {medication.name.toUpperCase()}
+              {medication.name.toUpperCase()} {medication.strength !== 'N/A' ? medication.strength : ''}
             </td>
           </tr>
           
           {/* Medication Instructions Row */}
           <tr>
             <td colSpan={2} style={{ 
-              padding: '0.08in 0.1in',
+              padding: '0.1in 0.1in',
               textAlign: 'left',
               fontWeight: 'bold',
-              fontSize: '13pt',
-              borderBottom: '1px solid #000'
+              fontSize: '14pt',
+              borderBottom: '1px solid #000',
+              lineHeight: '1.2',
+              color: '#000'
             }}>
               {formatSig()}
             </td>
           </tr>
           
-          {/* Quantity and Expiration Row */}
+          {/* Quantity Row */}
           <tr>
-            <td style={{ 
+            <td colSpan={2} style={{ 
               padding: '0.05in 0.1in',
-              fontSize: '10pt',
+              fontSize: '11pt',
+              fontWeight: '600'
             }}>
               <span style={{ fontWeight: 'bold' }}>QTY: </span>
               <span>{prescriptionMedication.quantity} {prescriptionMedication.unit}</span>
-            </td>
-            <td style={{ 
-              padding: '0.05in 0.1in',
-              textAlign: 'right',
-              fontSize: '10pt',
-            }}>
-              {formatDateDDMMYY(expirationDate)}
             </td>
           </tr>
           
@@ -176,12 +207,13 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
           <tr>
             <td colSpan={2} style={{ 
               padding: '0.05in 0.1in',
-              fontSize: '10pt',
-              borderBottom: '1px solid #000'
+              fontSize: '11pt',
+              borderBottom: '1px solid #000',
+              fontWeight: '600'
             }}>
               {prescriptionMedication.refills > 0 
-                ? `REFILLS: ${prescriptionMedication.refills}` 
-                : 'NO REFILLS. DR. AUTH REQUIRED'}
+                ? `${prescriptionMedication.refills} REFILLS` 
+                : 'NO REFILLS'}
             </td>
           </tr>
           
@@ -190,7 +222,8 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
             <td colSpan={2} style={{ 
               padding: '0.05in 0.1in',
               fontWeight: 'bold',
-              fontSize: '12pt',
+              fontSize: '13pt',
+              color: '#000'
             }}>
               {pharmacyName}
             </td>
@@ -199,21 +232,22 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
           {/* Pharmacy Address Row */}
           <tr>
             <td colSpan={2} style={{ 
-              padding: '0.03in 0.1in',
+              padding: '0.02in 0.1in',
               fontSize: '10pt',
+              fontWeight: '500'
             }}>
-              72 Aranguez Main Rd, San Juan
+              {pharmacyAddress}
             </td>
           </tr>
           
-          {/* Pharmacy Contact Row */}
+          {/* Pharmacy Phone Row */}
           <tr>
             <td colSpan={2} style={{ 
-              padding: '0.03in 0.1in',
+              padding: '0.02in 0.1in',
               fontSize: '10pt',
-              borderBottom: '1px solid #000'
+              fontWeight: '500'
             }}>
-              Tel: 638-2889  Whatsapp: 352-2676
+              Tel: {pharmacyPhone}
             </td>
           </tr>
           
@@ -222,6 +256,8 @@ const PrescriptionLabel = forwardRef<HTMLTableElement, PrescriptionLabelProps>(
             <td colSpan={2} style={{ 
               padding: '0.05in 0.1in',
               fontSize: '10pt',
+              borderTop: '1px solid #000',
+              fontWeight: '500'
             }}>
               Pharmacist: _______________________
             </td>
