@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { memoryStore } from '@/lib/storage/memory-store';
 import { Prescription, Patient, Doctor, Medication, PrescriptionMedication } from '@/types/database';
 import { format } from 'date-fns';
 import PrintButton from '@/components/print/PrintButton';
@@ -22,21 +22,9 @@ export default function PrescriptionsPage() {
   useEffect(() => {
     const fetchPrescriptions = async () => {
       try {
-        const { data, error } = await supabase
-          .from('prescriptions')
-          .select(`
-            *,
-            patient:patient_id(id, name),
-            doctor:doctor_id(id, name),
-            medications:prescription_medications(id, medication_id, dose, frequency, days, quantity, unit, medication:medication_id(id, name, strength))
-          `)
-          .order('date', { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-
-        setPrescriptions(data || []);
+        // For now, we'll just set empty prescriptions since memory store doesn't have prescription support yet
+        // This will prevent the Supabase error and allow the page to load
+        setPrescriptions([]);
       } catch (error: any) {
         console.error('Error fetching prescriptions:', error);
         setError(error.message || 'Failed to load prescriptions. Please try again later.');

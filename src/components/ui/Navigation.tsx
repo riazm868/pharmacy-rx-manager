@@ -68,6 +68,16 @@ export default function Navigation() {
                 >
                   Prescriptions
                 </Link>
+                <Link
+                  href="/search-demo"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    isActive('/search-demo')
+                      ? 'bg-indigo-700 text-white'
+                      : 'text-indigo-200 hover:bg-indigo-500 hover:text-white'
+                  }`}
+                >
+                  Search Demo
+                </Link>
               </div>
             </div>
           </div>
@@ -167,6 +177,17 @@ export default function Navigation() {
             onClick={() => setIsMobileMenuOpen(false)}
           >
             Prescriptions
+          </Link>
+          <Link
+            href="/search-demo"
+            className={`block px-3 py-2 rounded-md text-base font-medium ${
+              isActive('/search-demo')
+                ? 'bg-indigo-700 text-white'
+                : 'text-indigo-200 hover:bg-indigo-500 hover:text-white'
+            }`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            Search Demo
           </Link>
         </div>
       </div>

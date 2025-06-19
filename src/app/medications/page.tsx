@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { memoryStore } from '@/lib/storage/memory-store';
 import { Medication } from '@/types/database';
 import MedicationListSearch from '@/components/ui/MedicationListSearch';
 
@@ -10,23 +10,22 @@ export default function MedicationsPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const fetchMedications = async () => {
       try {
-        const { data, error } = await supabase
-          .from('medications')
-          .select('*')
-          .order('name', { ascending: true });
-
-        if (error) {
-          throw error;
+        // Fetch from API endpoint instead of directly from memory store
+        const response = await fetch('/api/medications');
+        if (!response.ok) {
+          throw new Error('Failed to fetch medications');
         }
-
-        setMedications(data || []);
-      } catch (error) {
+        const meds = await response.json();
+        setMedications(meds);
+      } catch (error: any) {
         console.error('Error fetching medications:', error);
-        setError('Failed to load medications. Please try again later.');
+        setError(error.message || 'Failed to load medications. Please try again later.');
       } finally {
         setIsLoading(false);
       }
@@ -35,16 +34,64 @@ export default function MedicationsPage() {
     fetchMedications();
   }, []);
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch('/api/lightspeed/sync', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync');
+      }
+
+      const result = await response.json();
+      
+      // Refresh medications after sync by fetching from API
+      const medsResponse = await fetch('/api/medications');
+      if (medsResponse.ok) {
+        const meds = await medsResponse.json();
+        setMedications(meds);
+      }
+      
+      alert(`Sync completed! Synced ${result.products} products and ${result.customers} customers.`);
+    } catch (error) {
+      console.error('Sync error:', error);
+      alert('Failed to sync. Make sure you are authenticated with Lightspeed.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Medications</h1>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSyncing ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Syncing...
+              </>
+            ) : (
+              'Sync from Lightspeed'
+            )}
+          </button>
         <Link
           href="/medications/new"
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           Add New Medication
         </Link>
+        </div>
       </div>
 
       <div className="mb-6">
