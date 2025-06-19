@@ -1,15 +1,29 @@
 # Pharmacy RX Manager
 
-A modern prescription management system for independent pharmacies. This MVP application provides a streamlined workflow for managing patients, doctors, medications, and prescriptions.
+A modern prescription management system for independent pharmacies with POS integration. This application provides a streamlined workflow for managing patients, doctors, medications, and prescriptions while maintaining real-time inventory synchronization.
+
+## 📚 Documentation
+
+- **[AI Agent Guide](AI_AGENT_GUIDE.md)** - Comprehensive guide for AI agents working with this codebase
+- **[Roadmap](ROADMAP.md)** - Current status and future development plans
+- **[Codebase Context](CODEBASE_CONTEXT.md)** - Business context and architectural decisions
+- **[API Documentation](API_DOCUMENTATION.md)** - Complete API endpoint reference
+- **[Label Printing Guide](README-LABEL-PRINTING.md)** - Setup instructions for Zebra label printing
 
 ## Features
 
+### Core Functionality
 - **Patient Management**: Add, search, and manage patient records with comprehensive information
 - **Doctor Management**: Maintain a database of doctors with contact information
 - **Medication Management**: Track medications with details like strength and count
 - **Prescription Creation**: Create prescriptions with multiple medications
 - **Automatic Quantity Calculation**: Calculate quantity to dispense based on SIG fields
 - **Modern UI**: Responsive design with autocomplete components and modal forms
+
+### Integrations
+- **Lightspeed Retail POS**: Real-time inventory synchronization with OAuth authentication
+- **Zebra Label Printing**: Direct thermal printing for prescription labels
+- **Point of Sale**: Basic checkout interface for OTC medications
 
 ## Tech Stack
 
@@ -64,8 +78,17 @@ pharmacy-rx-manager/
 3. Set up environment variables
    Create a `.env.local` file in the root directory with the following variables:
    ```
+   # Supabase Configuration
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+   # Lightspeed Integration (Optional)
+   LIGHTSPEED_CLIENT_ID=your_lightspeed_client_id
+   LIGHTSPEED_CLIENT_SECRET=your_lightspeed_client_secret
+   LIGHTSPEED_REDIRECT_URI=http://localhost:3004/api/lightspeed/auth
+
+   # Application Configuration
+   NEXT_PUBLIC_APP_URL=http://localhost:3004
    ```
 
 4. Run the development server
@@ -165,14 +188,46 @@ pharmacy-rx-manager/
 
 4. Configure Cloudflare's SSL/TLS settings to Full or Full (Strict)
 
+## Lightspeed Integration Setup
+
+1. **Create a Lightspeed OAuth App**
+   - Log in to your Lightspeed developer account
+   - Create a new OAuth application
+   - Set redirect URI to `http://localhost:3004/api/lightspeed/auth`
+   - Note your Client ID and Client Secret
+
+2. **Configure Environment Variables**
+   - Add Lightspeed credentials to `.env.local`
+   - Ensure `NEXT_PUBLIC_APP_URL` matches your development URL
+
+3. **Connect to Lightspeed**
+   - Navigate to `/lightspeed/connect` in the application
+   - Click "Connect to Lightspeed"
+   - Authorize the application
+   - System will automatically sync products
+
+## Development Guidelines
+
+- See [AI_AGENT_GUIDE.md](AI_AGENT_GUIDE.md) for detailed development patterns
+- Check [ROADMAP.md](ROADMAP.md) for current priorities
+- Review [CODEBASE_CONTEXT.md](CODEBASE_CONTEXT.md) for architectural decisions
+
+## Contributing
+
+When contributing to this repository:
+1. Create a feature branch from `develop`
+2. Follow existing code patterns (see AI Agent Guide)
+3. Test thoroughly with real-world scenarios
+4. Submit a pull request with clear description
+
 ## Future Enhancements
 
-- Multi-pharmacy support
+See [ROADMAP.md](ROADMAP.md) for detailed plans. Key upcoming features:
+- Complete Lightspeed bidirectional sync
+- User authentication and roles
 - Advanced reporting and analytics
-- Inventory management
-- Insurance processing
-- Patient portal
-- AI-powered features (autocomplete, search, smart field autofill)
+- Insurance claim processing
+- Mobile application
 
 ## License
 
