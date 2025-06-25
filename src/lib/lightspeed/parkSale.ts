@@ -34,22 +34,38 @@ export class LightspeedParkSaleService {
         // Continue with default tax exclusive setting
       }
 
-      // Get registers - user should configure which one to use
+      // Get registers and find "Dispensary"
       console.log('Fetching registers...');
       const registers = await this.client.getRegisters();
       console.log('Registers response:', registers);
-      if (!registers.data || registers.data.length === 0) {
-        throw new Error('No registers found in Lightspeed');
+      
+      const dispensaryRegister = registers.data?.find((r: any) => 
+        r.name === 'Dispensary' || r.register_name === 'Dispensary'
+      );
+      
+      if (!dispensaryRegister) {
+        console.error('Available registers:', registers.data?.map((r: any) => ({ id: r.id, name: r.name || r.register_name })));
+        throw new Error('Dispensary register not found in Lightspeed');
       }
+      
+      console.log('Found Dispensary register:', dispensaryRegister);
 
-      // Get primary user
+      // Get users and find Venetta Pitamber
       console.log('Fetching users...');
       const users = await this.client.getUsers();
       console.log('Users response:', users);
-      const primaryUser = users.data?.find((u: any) => u.is_primary_user) || users.data?.[0];
-      if (!primaryUser) {
-        throw new Error('No users found in Lightspeed');
+      
+      const venettaUser = users.data?.find((u: any) => 
+        u.display_name === 'Venetta Pitamber' || 
+        (u.first_name === 'Venetta' && u.last_name === 'Pitamber')
+      );
+      
+      if (!venettaUser) {
+        console.error('Available users:', users.data?.map((u: any) => ({ id: u.id, display_name: u.display_name })));
+        throw new Error('User Venetta Pitamber not found in Lightspeed');
       }
+      
+      console.log('Found user Venetta Pitamber:', venettaUser);
 
       // Get default tax
       console.log('Fetching taxes...');
@@ -69,8 +85,8 @@ export class LightspeedParkSaleService {
       }
 
       this.config = {
-        registerId: registers.data[0].id, // Use first register by default
-        userId: primaryUser.id,
+        registerId: dispensaryRegister.id,
+        userId: venettaUser.id,
         taxId: defaultTax?.id || 'default',
         taxRate: parseFloat(defaultTax?.rate || '0'),
         taxName: defaultTax?.name || 'No Tax',
@@ -110,18 +126,28 @@ export class LightspeedParkSaleService {
 
       // Get price from Lightspeed product data or use a default
       const unitPrice = lightspeedProductPrices?.[med.medication_id] || 0;
-      const price = med.quantity * unitPrice;
+      const totalPrice = med.quantity * unitPrice;
       
-      // Calculate tax based on retailer settings
-      const tax = config.taxExclusive 
-        ? price * config.taxRate 
-        : (price / (1 + config.taxRate)) * config.taxRate;
+      // Calculate tax amount from tax-inclusive price
+      // If tax is inclusive, we need to extract the tax amount from the total
+      let taxAmount = 0;
+      let priceExcludingTax = totalPrice;
+      
+      if (!config.taxExclusive && config.taxRate > 0) {
+        // Tax is included in price, so extract it
+        // Formula: tax = totalPrice - (totalPrice / (1 + taxRate))
+        priceExcludingTax = totalPrice / (1 + config.taxRate);
+        taxAmount = totalPrice - priceExcludingTax;
+      } else if (config.taxExclusive && config.taxRate > 0) {
+        // Tax is exclusive, add it on top
+        taxAmount = totalPrice * config.taxRate;
+      }
 
       return {
         product_id: productId,
         quantity: med.quantity,
-        price: price,
-        tax: tax,
+        price: priceExcludingTax, // Price without tax for Lightspeed
+        tax: taxAmount,
         tax_id: config.taxId,
         attributes: [
           {

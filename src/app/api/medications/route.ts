@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       name: product.name || 'Unknown Product',
       strength: product.sku || 'N/A',
       count: product.inventory_count || 0,
-      price: parseFloat(product.price_including_tax || product.price || '0'), // Actual Lightspeed field names
+      price: parseFloat(product.price_including_tax || product.price || '0'), // Use retail price including tax
       created_at: product.created_at,
       updated_at: product.updated_at,
     } as DisplayMedication));
