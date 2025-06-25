@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import LivePatientSearch from '@/components/ui/LivePatientSearch';
+import LiveMedicationSearch from '@/components/ui/LiveMedicationSearch';
 import { usePatientSearch, useMedicationSearch, useDoctorSearch } from '@/hooks/useApiSearch';
 import { Patient, Medication, Doctor } from '@/types/database';
 
@@ -148,10 +149,25 @@ export default function SearchDemoPage() {
             )}
           </div>
 
-          {/* You can create similar components for medications and doctors */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Medication Search Component
+            </label>
+            <LiveMedicationSearch
+              onSelectMedication={(medication) => setSelectedMedication(medication)}
+              placeholder="Search medications..."
+            />
+            {selectedMedication && (
+              <div className="mt-2 p-3 bg-green-50 rounded text-sm">
+                Selected: {selectedMedication.name} (Stock: {selectedMedication.count})
+              </div>
+            )}
+          </div>
+
+          {/* You can create similar components for doctors */}
           <div className="p-4 bg-gray-50 rounded">
             <p className="text-sm text-gray-600">
-              Similar components can be created for medications and doctors using the same pattern.
+              A similar component can be created for doctors using the same pattern.
             </p>
           </div>
         </div>

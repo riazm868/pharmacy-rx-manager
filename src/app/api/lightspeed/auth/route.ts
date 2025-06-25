@@ -35,18 +35,31 @@ const client = new LightspeedClient({
       // ...
       const tokenData = await client.exchangeCodeForToken(code, domainPrefix);
       
-      // Store the token in a cookie
+      // Store the tokens in separate cookies to match what the API routes expect
       const response = NextResponse.redirect(new URL('/lightspeed/success', request.url));
-      response.cookies.set('lightspeed_token', JSON.stringify({
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        domain_prefix: domainPrefix,
-        expires_in: tokenData.expires_in,
-      }), {
+      
+      // Store access token
+      response.cookies.set('lightspeed_access_token', tokenData.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: tokenData.expires_in || 3600, // Use token expiry or default to 1 hour
+        maxAge: tokenData.expires_in || 3600,
+      });
+      
+      // Store domain prefix
+      response.cookies.set('lightspeed_domain_prefix', domainPrefix, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: tokenData.expires_in || 3600,
+      });
+      
+      // Store refresh token (for future use)
+      response.cookies.set('lightspeed_refresh_token', tokenData.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: tokenData.expires_in || 3600,
       });
       
       return response;

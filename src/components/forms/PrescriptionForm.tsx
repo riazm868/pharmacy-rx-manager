@@ -445,6 +445,53 @@ export default function PrescriptionForm({
     }
   }, []);
 
+  // Auto-select patient if only one is provided
+  useEffect(() => {
+    if (patients.length === 1 && !selectedPatient) {
+      setSelectedPatient(patients[0]);
+    }
+  }, [patients]);
+
+  // Auto-add medications when new ones are provided
+  useEffect(() => {
+    if (medications.length > 0) {
+      // Check if we have any empty medication items
+      const emptyItems = medicationItems.filter(item => !item.medication);
+      
+      // For each medication in the props that isn't already in our items
+      medications.forEach(medication => {
+        const alreadyAdded = medicationItems.some(item => 
+          item.medication && item.medication.id === medication.id
+        );
+        
+        if (!alreadyAdded) {
+          // If we have an empty item, use it
+          const emptyItem = emptyItems.shift();
+          if (emptyItem) {
+            updateMedicationItem(emptyItem.id, { medication });
+          } else {
+            // Otherwise add a new item
+            setMedicationItems(prev => [
+              ...prev,
+              {
+                medication: medication,
+                dose: '',
+                route: '',
+                frequency: '',
+                days: 0,
+                quantity: 0,
+                unit: 'tablets',
+                refills: 0,
+                notes: '',
+                id: `temp-${Date.now()}-${Math.random()}`,
+              },
+            ]);
+          }
+        }
+      });
+    }
+  }, [medications]);
+
   return (
     <form onSubmit={(e) => handleSubmit(e)} className="space-y-6">
       {/* Form Error Message */}

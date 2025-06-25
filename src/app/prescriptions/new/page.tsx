@@ -6,6 +6,10 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Patient, Doctor, Medication, Prescription, PrescriptionMedication } from '@/types/database';
 import PrescriptionForm from '@/components/forms/PrescriptionForm';
+import LivePatientSearch from '@/components/ui/LivePatientSearch';
+import LiveMedicationSearch from '@/components/ui/LiveMedicationSearch';
+import { DisplayPatient } from '@/app/api/patients/route';
+import { DisplayMedication } from '@/app/api/medications/route';
 
 export default function NewPrescriptionPage() {
   console.log('Rendering NewPrescriptionPage');
@@ -15,6 +19,120 @@ export default function NewPrescriptionPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLightspeedSearch, setShowLightspeedSearch] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedMedications, setSelectedMedications] = useState<Medication[]>([]);
+
+  // Save Lightspeed patient to local database when selected
+  const handleLightspeedPatientSelect = async (patient: DisplayPatient) => {
+    try {
+      console.log('Selected Lightspeed patient:', patient);
+      
+      // Check if patient already exists in local database
+      const { data: existingPatient, error: checkError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id_number', patient.id_number)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 means no rows found, which is expected
+        console.error('Error checking existing patient:', checkError);
+        throw checkError;
+      }
+
+      if (existingPatient) {
+        console.log('Patient already exists:', existingPatient);
+        // Patient already exists, use existing record
+        setSelectedPatient(existingPatient);
+        return;
+      }
+
+      // Create new patient record from Lightspeed data
+      const newPatientData = {
+        name: patient.name,
+        dob: patient.dob || '1900-01-01', // Default date when DOB is missing
+        gender: patient.gender || 'Unknown',
+        id_number: patient.id_number,
+        dp_number: patient.dp_number || '',
+        birth_cert_pin: patient.birth_cert_pin || '',
+        phone: patient.phone || '',
+        phone2: patient.phone2 || '',
+        email: patient.email || '',
+        address: patient.address || '',
+        city: patient.city || '',
+        state: patient.state || '',
+        zip: patient.zip || '',
+        lightspeed_id: patient.lightspeed_id || patient.id, // Store Lightspeed ID
+      };
+
+      console.log('Creating new patient with data:', newPatientData);
+
+      const { data: newPatient, error: insertError } = await supabase
+        .from('patients')
+        .insert(newPatientData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting patient:', insertError);
+        throw insertError;
+      }
+
+      console.log('Successfully created patient:', newPatient);
+      setSelectedPatient(newPatient);
+    } catch (err: any) {
+      console.error('Error saving Lightspeed patient:', err);
+      alert(`Failed to save patient from Lightspeed: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  // Save Lightspeed medication to local database when selected  
+  const handleLightspeedMedicationSelect = async (medication: DisplayMedication) => {
+    try {
+      // Check if medication already exists in local database
+      const { data: existingMedication, error: checkError } = await supabase
+        .from('medications')
+        .select('*')
+        .eq('name', medication.name)
+        .single();
+
+      if (existingMedication) {
+        // Medication already exists, use existing record
+        setSelectedMedications(prev => [...prev, existingMedication]);
+        setMedications(prev => {
+          // Add to medications list if not already there
+          if (!prev.find(m => m.id === existingMedication.id)) {
+            return [...prev, existingMedication];
+          }
+          return prev;
+        });
+        return;
+      }
+
+      // Create new medication record from Lightspeed data
+      const newMedicationData = {
+        name: medication.name,
+        strength: medication.strength || 'N/A',
+        count: medication.count || 0,
+        lightspeed_id: medication.lightspeed_id || medication.id, // Store Lightspeed ID
+      };
+
+      const { data: newMedication, error: insertError } = await supabase
+        .from('medications')
+        .insert(newMedicationData)
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      setSelectedMedications(prev => [...prev, newMedication]);
+      setMedications(prev => [...prev, newMedication]);
+    } catch (err) {
+      console.error('Error saving Lightspeed medication:', err);
+      alert('Failed to save medication from Lightspeed. Please try again.');
+    }
+  };
 
   // Search for patients
   const handleSearchPatient = async (query: string) => {
@@ -229,12 +347,70 @@ export default function NewPrescriptionPage() {
       
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="px-4 py-5 sm:p-6">
+          {/* Lightspeed Toggle */}
+          <div className="mb-6 flex items-center justify-between bg-blue-50 p-4 rounded-lg">
+            <div>
+              <h3 className="text-sm font-medium text-blue-900">Lightspeed Integration</h3>
+              <p className="text-sm text-blue-700">Search patients and medications from your Lightspeed account</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowLightspeedSearch(!showLightspeedSearch);
+                // Clear selections when toggling off
+                if (showLightspeedSearch) {
+                  setSelectedPatient(null);
+                  setSelectedMedications([]);
+                }
+              }}
+              className={`${
+                showLightspeedSearch ? 'bg-blue-600' : 'bg-gray-200'
+              } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            >
+              <span
+                className={`${
+                  showLightspeedSearch ? 'translate-x-5' : 'translate-x-0'
+                } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+              />
+            </button>
+          </div>
+
+          {/* Lightspeed Search Components */}
+          {showLightspeedSearch && (
+            <div className="mb-6 space-y-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Lightspeed Patients
+                </label>
+                <LivePatientSearch
+                  onSelectPatient={handleLightspeedPatientSelect}
+                  placeholder="Search patients from Lightspeed..."
+                />
+                {selectedPatient && (
+                  <div className="mt-2 p-3 bg-green-50 rounded text-sm">
+                    Selected: {selectedPatient.name} (ID: {selectedPatient.id_number})
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Lightspeed Medications
+                </label>
+                <LiveMedicationSearch
+                  onSelectMedication={handleLightspeedMedicationSelect}
+                  placeholder="Search medications from Lightspeed..."
+                />
+              </div>
+            </div>
+          )}
+
           <PrescriptionForm
             onSubmit={handleSubmit}
             onCancel={() => router.push('/prescriptions')}
-            patients={patients}
+            patients={selectedPatient ? [selectedPatient] : patients}
             doctors={doctors}
-            medications={medications}
+            medications={selectedMedications}
             onSearchPatient={handleSearchPatient}
             onSearchDoctor={handleSearchDoctor}
             onSearchMedication={handleSearchMedication}

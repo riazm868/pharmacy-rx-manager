@@ -129,9 +129,21 @@ export class LightspeedClient {
     return `https://${this.domainPrefix}.retail.lightspeed.app/api/2.0`;
   }
 
+  private getApiV1Base(): string {
+    if (!this.domainPrefix) throw new Error('Domain prefix not set');
+    return `https://${this.domainPrefix}.retail.lightspeed.app/api`;
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     await this.ensureValidToken();
     const url = `${this.getApiBase()}${endpoint}`;
+    console.log('Lightspeed API Request:', {
+      url,
+      method: options.method || 'GET',
+      endpoint,
+      domainPrefix: this.domainPrefix,
+    });
+    
     const headers = {
       'Authorization': `Bearer ${this.accessToken}`,
       'Content-Type': 'application/json',
@@ -141,21 +153,120 @@ export class LightspeedClient {
       ...options,
       headers,
     });
+    
+    const responseText = await response.text();
+    console.log('Lightspeed API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      bodyPreview: responseText.substring(0, 200),
+    });
+    
     if (!response.ok) {
+      console.error(`Lightspeed API Error: ${response.status} ${response.statusText}`, {
+        url,
+        responseText: responseText,
+      });
       throw new Error(`Lightspeed API error: ${response.statusText}`);
     }
-    return response.json();
+    
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse JSON response:', responseText.substring(0, 500));
+      throw new Error('Invalid JSON response from Lightspeed API');
+    }
   }
 
-  async getProducts(page: number = 1, limit: number = 100): Promise<LightspeedApiResponse<LightspeedProduct>> {
-    return this.request<LightspeedApiResponse<LightspeedProduct>>(
-      `/products?page=${page}&limit=${limit}`
-    );
+  private async requestV1<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    await this.ensureValidToken();
+    const url = `${this.getApiV1Base()}${endpoint}`;
+    console.log('Lightspeed API V1 Request:', {
+      url,
+      method: options.method || 'GET',
+      endpoint,
+      domainPrefix: this.domainPrefix,
+    });
+    
+    const headers = {
+      'Authorization': `Bearer ${this.accessToken}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+    
+    const responseText = await response.text();
+    console.log('Lightspeed API V1 Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      bodyPreview: responseText.substring(0, 200),
+    });
+    
+    if (!response.ok) {
+      console.error(`Lightspeed API V1 Error: ${response.status} ${response.statusText}`, {
+        url,
+        responseText: responseText,
+      });
+      throw new Error(`Lightspeed API error: ${response.statusText}`);
+    }
+    
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse JSON response:', responseText.substring(0, 500));
+      throw new Error('Invalid JSON response from Lightspeed API');
+    }
   }
 
-  async getCustomers(page: number = 1, limit: number = 100): Promise<LightspeedApiResponse<LightspeedCustomer>> {
-    return this.request<LightspeedApiResponse<LightspeedCustomer>>(
-      `/customers?page=${page}&limit=${limit}`
-    );
+  async getProducts(search: string = '', page: number = 1, limit: number = 100): Promise<LightspeedApiResponse<LightspeedProduct>> {
+    let endpoint = `/products?page=${page}&limit=${limit}`;
+    if (search) {
+      endpoint += `&name=${encodeURIComponent(search)}`;
+    }
+    return this.request<LightspeedApiResponse<LightspeedProduct>>(endpoint);
+  }
+
+  async getCustomers(search: string = '', page: number = 1, limit: number = 100): Promise<LightspeedApiResponse<LightspeedCustomer>> {
+    let endpoint = `/customers?page=${page}&limit=${limit}`;
+    if (search) {
+      endpoint += `&name=${encodeURIComponent(search)}`;
+    }
+    return this.request<LightspeedApiResponse<LightspeedCustomer>>(endpoint);
+  }
+
+  async getRetailer(): Promise<any> {
+    return this.request('/retailer');
+  }
+
+  async getRegisters(): Promise<any> {
+    return this.request('/registers');
+  }
+
+  async getUsers(): Promise<any> {
+    return this.request('/users');
+  }
+
+  async getTaxes(): Promise<any> {
+    return this.request('/taxes');
+  }
+
+  async createParkedSale(saleData: any): Promise<any> {
+    // Sales endpoint uses v1 API
+    return this.requestV1('/register_sales', {
+      method: 'POST',
+      body: JSON.stringify(saleData),
+    });
+  }
+
+  async updateSale(saleId: string, saleData: any): Promise<any> {
+    // Sales endpoint uses v1 API
+    return this.requestV1(`/register_sales/${saleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(saleData),
+    });
   }
 } 
