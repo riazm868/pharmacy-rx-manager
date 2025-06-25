@@ -303,6 +303,74 @@ export default function NewPrescriptionPage() {
         }
       }
       
+      // Park sale in Lightspeed if we have Lightspeed data
+      if ((selectedPatient as any)?.lightspeed_id && showLightspeedSearch) {
+        try {
+          console.log('Creating parked sale in Lightspeed...');
+          
+          // Get patient, doctor, and medications data
+          const { data: patientData } = await supabase
+            .from('patients')
+            .select('*')
+            .eq('id', prescription.patient_id)
+            .single();
+            
+          const { data: doctorData } = await supabase
+            .from('doctors')
+            .select('*')
+            .eq('id', prescription.doctor_id)
+            .single();
+            
+          const { data: medicationData } = await supabase
+            .from('medications')
+            .select('*')
+            .in('id', createdMedications.map(m => m.medication_id));
+          
+          // Build medication mapping
+          const lightspeedProductIds: Record<string, string> = {};
+          const lightspeedProductPrices: Record<string, number> = {};
+          
+          medicationData?.forEach((med: Medication) => {
+            if (med.lightspeed_id) {
+              lightspeedProductIds[med.id] = med.lightspeed_id;
+              lightspeedProductPrices[med.id] = med.price || 0;
+            }
+          });
+          
+          // Only proceed if we have Lightspeed product IDs
+          if (Object.keys(lightspeedProductIds).length > 0) {
+            const parkSaleResponse = await fetch('/api/lightspeed/park-sale', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                prescription,
+                medications: createdMedications,
+                patient: patientData,
+                doctor: doctorData,
+                lightspeedCustomerId: patientData?.lightspeed_id,
+                lightspeedProductIds,
+                lightspeedProductPrices,
+              }),
+            });
+            
+            if (!parkSaleResponse.ok) {
+              const errorData = await parkSaleResponse.json();
+              console.error('Failed to park sale:', errorData);
+              // Don't throw - just log the error so prescription save still succeeds
+              setError(`Prescription saved but failed to create sale in Lightspeed: ${errorData.error || 'Unknown error'}`);
+            } else {
+              console.log('Successfully parked sale in Lightspeed');
+            }
+          }
+        } catch (parkSaleError: any) {
+          console.error('Error parking sale:', parkSaleError);
+          // Don't throw - just log the error so prescription save still succeeds
+          setError(`Prescription saved but failed to create sale in Lightspeed: ${parkSaleError.message || 'Unknown error'}`);
+        }
+      }
+      
       // Call the callback if provided (for printing)
       if (callback && typeof callback === 'function') {
         callback(prescription, createdMedications);
@@ -419,6 +487,7 @@ export default function NewPrescriptionPage() {
             onAddDoctor={handleAddDoctor}
             onAddMedication={handleAddMedication}
             isSubmitting={isSubmitting}
+            showLightspeedIntegration={showLightspeedSearch}
           />
         </div>
       </div>

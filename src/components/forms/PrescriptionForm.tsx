@@ -58,6 +58,7 @@ interface PrescriptionFormProps {
   onAddDoctor: (doctor: Omit<Doctor, 'id' | 'created_at' | 'updated_at'>) => Promise<Doctor>;
   onAddMedication: (medication: Omit<Medication, 'id' | 'created_at' | 'updated_at'>) => Promise<Medication>;
   isSubmitting?: boolean;
+  showLightspeedIntegration?: boolean;
 };
 
 type MedicationItem = {
@@ -86,6 +87,7 @@ export default function PrescriptionForm({
   onAddDoctor,
   onAddMedication,
   isSubmitting = false,
+  showLightspeedIntegration = false,
 }: PrescriptionFormProps) {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -933,7 +935,7 @@ export default function PrescriptionForm({
               Creating Prescription...
             </span>
           ) : (
-            'Create Prescription'
+            showLightspeedIntegration ? 'Create Prescription & Park Sale' : 'Create Prescription'
           )}
         </button>
       </div>
