@@ -4,21 +4,26 @@ import { LightspeedClient } from '@/lib/lightspeed/client';
 import { Medication } from '@/types/database';
 import { LightspeedProduct } from '@/types/lightspeed';
 
-export type DisplayMedication = Medication & {
-  is_lightspeed_product?: boolean;
-  lightspeed_id?: number;
+export type DisplayMedication = {
+  id: string;
+  lightspeed_id?: string;
+  name: string;
+  strength: string;
+  count: number;
+  price?: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 const mapLightspeedProductToMedication = (product: LightspeedProduct): DisplayMedication => ({
   id: product.id.toString(),
+  lightspeed_id: product.id.toString(),
   name: product.name,
   strength: '', // Lightspeed products don't have a 'strength' field
   count: product.quantity ?? 0,
-  manufacturer: '', // Or map from a custom field if you have one
+  price: product.price || 0,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
-  is_lightspeed_product: true,
-  lightspeed_id: product.id,
 });
 
 export async function GET(request: Request) {
@@ -29,7 +34,7 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const page = Math.floor(offset / limit) + 1;
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const accessToken = cookieStore.get('lightspeed_access_token')?.value;
     const domainPrefix = cookieStore.get('lightspeed_domain_prefix')?.value;
 
@@ -49,10 +54,19 @@ export async function GET(request: Request) {
 
     const response = await lightspeedClient.getProducts(search, page, limit);
 
-    const medications: DisplayMedication[] = response.data.map(mapLightspeedProductToMedication);
+    const processedData = response.data.map((product: any) => ({
+      id: product.id,
+      lightspeed_id: product.id,
+      name: product.name || 'Unknown Product',
+      strength: product.sku || 'N/A',
+      count: product.inventory_count || 0,
+      price: parseFloat(product.price_including_tax || product.price || '0'), // Actual Lightspeed field names
+      created_at: product.created_at,
+      updated_at: product.updated_at,
+    } as DisplayMedication));
 
     return NextResponse.json({
-      data: medications,
+      data: processedData,
       total: response.pagination?.count ?? 0,
     });
 

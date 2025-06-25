@@ -91,7 +91,8 @@ export class LightspeedParkSaleService {
     patient: Patient,
     doctor: Doctor,
     lightspeedCustomerId?: string,
-    lightspeedProductIds?: Record<string, string>
+    lightspeedProductIds?: Record<string, string>,
+    lightspeedProductPrices?: Record<string, number>
   ): Promise<any> {
     if (!this.config) {
       await this.initialize();
@@ -107,8 +108,11 @@ export class LightspeedParkSaleService {
         throw new Error(`Lightspeed product ID not found for medication ${med.medication_id}`);
       }
 
+      // Get price from Lightspeed product data or use a default
+      const unitPrice = lightspeedProductPrices?.[med.medication_id] || 0;
+      const price = med.quantity * unitPrice;
+      
       // Calculate tax based on retailer settings
-      const price = med.quantity * 10; // You'll need to determine actual pricing
       const tax = config.taxExclusive 
         ? price * config.taxRate 
         : (price / (1 + config.taxRate)) * config.taxRate;

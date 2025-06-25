@@ -115,6 +115,7 @@ export default function NewPrescriptionPage() {
         name: medication.name,
         strength: medication.strength || 'N/A',
         count: medication.count || 0,
+        price: medication.price || 0, // Store the price
         lightspeed_id: medication.lightspeed_id || medication.id, // Store Lightspeed ID
       };
 

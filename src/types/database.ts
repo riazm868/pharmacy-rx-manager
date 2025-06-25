@@ -30,15 +30,16 @@ export type Doctor = {
   updated_at: string;
 };
 
-export type Medication = {
+export interface Medication {
   id: string;
   name: string;
   strength: string;
   count: number;
-  manufacturer?: string;
+  lightspeed_id?: string;
+  price?: number;
   created_at: string;
   updated_at: string;
-};
+}
 
 export type Prescription = {
   id: string;
